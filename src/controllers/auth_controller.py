@@ -51,3 +51,28 @@ def refresh_token():
     current_user = get_jwt_identity()
     new_token = create_access_token(identity=current_user)
     return success_response(data={'access_token': new_token}, message="Session Extended")
+@jwt_required()
+def update_email_config():
+    user_id = get_jwt_identity()
+    data = request.json
+    
+    user = UserRepository.get_by_id(user_id)
+    if not user:
+        return error_response(message="User not found.")
+    
+    try:
+        user.imap_server = data.get('imap_server', 'imap.gmail.com')
+        user.email_user = data.get('email_user')
+        
+        # Basic Encryption (Base64 as requested)
+        import base64
+        raw_pass = data.get('email_pass')
+        if raw_pass:
+            user.email_pass_encrypted = base64.b64encode(raw_pass.encode()).decode()
+            
+        from src.config.db import db
+        db.session.commit()
+        
+        return success_response(message="Cloud Mail credentials synchronized.")
+    except Exception as e:
+        return error_response(message=str(e))

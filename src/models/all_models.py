@@ -37,6 +37,12 @@ class User(db.Model):
     total_screen_time_today = db.Column(db.Integer, default=0)
     daily_screen_time_goal = db.Column(db.Integer, default=120) # in minutes
 
+    # Personalized Email Sync
+    imap_server = db.Column(db.String(100))
+    smtp_server = db.Column(db.String(100))
+    email_user = db.Column(db.String(120))
+    email_pass_encrypted = db.Column(db.String(255))
+
     tasks = db.relationship('Task', backref='user', lazy=True)
     logs = db.relationship('ActivityLog', backref='user', lazy=True)
 

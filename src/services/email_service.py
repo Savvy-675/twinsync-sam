@@ -26,11 +26,20 @@ PRIORITY_DOMAINS = [
 
 class EmailService:
     @staticmethod
-    def fetch_emails(max_emails=20):
-        """Connect to Gmail via IMAP and fetch recent unread emails."""
+    def fetch_emails(user, max_emails=20):
+        """Connect to user's personalized mail server."""
+        if not user or not user.email_user or not user.email_pass_encrypted:
+            logger.warning(f"No email credentials for user {user.id if user else 'Unknown'}")
+            return []
+
         try:
-            mail = imaplib.IMAP4_SSL('imap.gmail.com')
-            mail.login(Config.SMTP_USER, Config.SMTP_PASS)
+            # Basic Decryption (Base64 for this 'basic' requirement)
+            import base64
+            password = base64.b64decode(user.email_pass_encrypted).decode()
+            
+            host = user.imap_server or 'imap.gmail.com'
+            mail = imaplib.IMAP4_SSL(host)
+            mail.login(user.email_user, password)
             mail.select('inbox')
 
             # Search for recent emails (last 3 days)
@@ -139,11 +148,14 @@ Rules:
 
     @staticmethod
     def fetch_and_parse_emails(user_id):
-        """Main entry: fetch, filter, extract, and return tasks from Gmail."""
-        tasks_created = []
+        """Main entry: fetch, filter, extract, and return tasks from user's mail."""
+        from src.models.all_models import User
+        user = User.query.get(user_id)
+        if not user: return []
         
-        emails = EmailService.fetch_emails()
-        logger.info(f"Fetched {len(emails)} emails. Filtering for tasks...")
+        tasks_created = []
+        emails = EmailService.fetch_emails(user)
+        logger.info(f"User {user_id}: Fetched {len(emails)} emails. Filtering...")
 
         task_emails = EmailService.filter_task_emails(emails)
         logger.info(f"Found {len(task_emails)} task-related emails.")

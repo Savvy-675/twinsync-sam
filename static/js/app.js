@@ -138,32 +138,69 @@ navItems.forEach(item => {
 
 // -------- AUTH --------
 
+let isRegistrationMode = false;
+const authToggleBtn = document.getElementById('auth-toggle-btn');
+const authToggleText = document.getElementById('auth-toggle-text');
+const signupFields = document.getElementById('auth-signup-fields');
+
+if (authToggleBtn) {
+    authToggleBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        isRegistrationMode = !isRegistrationMode;
+        
+        if (isRegistrationMode) {
+            authToggleText.textContent = "Already have an account?";
+            authToggleBtn.textContent = "Sign In instead";
+            btnAuthSubmit.textContent = "Create Cloud Profile";
+            signupFields.style.display = 'block';
+        } else {
+            authToggleText.textContent = "New to TwinSync?";
+            authToggleBtn.textContent = "Create Cloud Profile";
+            btnAuthSubmit.textContent = "Sign In to Sync";
+            signupFields.style.display = 'none';
+        }
+    });
+}
+
 authForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = document.getElementById('auth-email').value;
     const password = document.getElementById('auth-password').value;
-    btnAuthSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Syncing Cloud...';
+    
+    btnAuthSubmit.innerHTML = isRegistrationMode ? '<i class="fa-solid fa-spinner fa-spin"></i> Establishing Identity...' : '<i class="fa-solid fa-spinner fa-spin"></i> Syncing Cloud...';
     btnAuthSubmit.disabled = true;
+    
     try {
-        const res = await fetch(`${API_BASE}/auth/login`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
+        const endpoint = isRegistrationMode ? '/auth/register' : '/auth/login';
+        const payload = { email, password };
+        
+        if (isRegistrationMode) {
+            payload.name = document.getElementById('auth-name').value || "New Explorer";
+            payload.working_hours_start = document.getElementById('auth-ob-start').value || "09:00";
+            payload.working_hours_end = document.getElementById('auth-ob-end').value || "17:00";
+        }
+
+        const res = await fetch(`${API_BASE}${endpoint}`, {
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
         });
+        
         const data = await res.json();
         if (data.success) {
             setToken(data.data.access_token);
+            toast(isRegistrationMode ? 'Identity Established' : 'Cloud Verified', data.message, 'success');
             authOverlay.style.display = 'none';
             appContainer.style.display = 'block';
-            initializeRealtime();
             await fetchAppData();
-            showToast('Cloud Identity Verified ✓', 'success');
+            initializeRealtime();
         } else {
-            showToast(data.message || 'Login failed', 'danger');
+            toast('Error', data.message, 'danger');
         }
     } catch (err) {
-        showToast('Connection Refused', 'danger');
+        toast('Error', "Cloud rejected connection.", 'danger');
     } finally {
-        btnAuthSubmit.textContent = "Sign In to Sync";
+        btnAuthSubmit.innerHTML = isRegistrationMode ? "Create Cloud Profile" : "Sign In to Sync";
         btnAuthSubmit.disabled = false;
     }
 });
@@ -191,11 +228,64 @@ function renderDashboard() {
     const u = window.appData.analytics.user || {};
     if (u.name) userAvatar.textContent = u.name.charAt(0).toUpperCase();
     const score = Math.round(u.productivity_score || 0);
-    document.getElementById('score-text').textContent = score;
-    document.getElementById('score-circle').style.setProperty('--score', score);
-    document.getElementById('delay-text').textContent = (u.delay_rate || 0) + '%';
+    const scoreEl = document.getElementById('score-text');
+    if (scoreEl) {
+        scoreEl.textContent = score;
+        document.getElementById('score-circle').style.setProperty('--score', score);
+    }
+    const delayEl = document.getElementById('delay-text');
+    if (delayEl) delayEl.textContent = (u.delay_rate || 0) + '%';
     renderTopTasks();
     renderProductivityInsights();
+}
+
+function renderProfile() {
+    const u = window.appData.analytics.user || {};
+    const nameEl = document.getElementById('profile-name');
+    if (nameEl) nameEl.textContent = u.name || 'Explorer';
+    if (u.name) userAvatar.textContent = u.name.charAt(0).toUpperCase();
+    
+    const emailEl = document.getElementById('profile-email');
+    if (emailEl) emailEl.textContent = u.email;
+    
+    const pscoreEl = document.getElementById('pstat-score');
+    if (pscoreEl) pscoreEl.textContent = Math.round(u.productivity_score || 0);
+    
+    const pdelayEl = document.getElementById('pstat-delay');
+    if (pdelayEl) pdelayEl.textContent = (u.delay_rate || 0) + '%';
+    
+    // Pre-fill Email Settings
+    const imapEl = document.getElementById('prof-imap');
+    if (imapEl) imapEl.value = u.imap_server || 'imap.gmail.com';
+    const emailUserEl = document.getElementById('prof-email-user');
+    if (emailUserEl) emailUserEl.value = u.email_user || '';
+}
+
+async function saveEmailSettings() {
+    const imap = document.getElementById('prof-imap').value;
+    const user = document.getElementById('prof-email-user').value;
+    const pass = document.getElementById('prof-email-pass').value;
+    
+    if (!user || !pass) {
+        toast('Incomplete', 'Email and App Password are required.', 'warning');
+        return;
+    }
+
+    const res = await apiFetch('/user/email-config', {
+        method: 'POST',
+        body: JSON.stringify({
+            imap_server: imap,
+            email_user: user,
+            email_pass: pass
+        })
+    });
+
+    if (res.success) {
+        toast('Cloud Sync', 'Mail credentials linked to Twin.', 'success');
+        fetchAppData();
+    } else {
+        toast('Error', res.message || 'Sync failed.', 'danger');
+    }
 }
 
 function renderTopTasks() {
@@ -1002,3 +1092,66 @@ function renderProductivityInsights() {
     `;
 }
 
+
+// -------- REALTIME SYNC --------
+
+function initializeRealtime() {
+    if (socket) socket.disconnect();
+    
+    const token = getToken();
+    if (!token) return;
+
+    socket = io(SOCKET_BASE, {
+        auth: { token: token }
+    });
+
+    socket.on('connect', () => {
+        console.log('Connected to TwinSync Cloud Socket');
+        const user = window.appData?.analytics?.user;
+        if (user && user.id) {
+            socket.emit('join', { user_id: user.id });
+        }
+    });
+
+    socket.on('task_updated', (data) => {
+        toast('Cloud Sync', data.message, 'success');
+        fetchAppData();
+    });
+
+    socket.on('analytics_refreshed', () => {
+        fetchAppData();
+    });
+
+    socket.on('disconnect', () => {
+        console.log('Disconnected from Cloud Socket');
+    });
+}
+
+// -------- ON PAGE LOAD --------
+
+window.addEventListener('DOMContentLoaded', async () => {
+    const token = getToken();
+    if (token) {
+        authOverlay.style.display = 'none';
+        appContainer.style.display = 'block';
+        await fetchAppData();
+        initializeRealtime();
+    } else {
+        authOverlay.style.display = 'flex';
+        appContainer.style.display = 'none';
+    }
+});
+
+// -------- UTILS --------
+
+function toast(title, message, type = 'success') {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+    const color = type === 'success' ? '#10b981' : (type === 'danger' ? '#ef4444' : '#f59e0b');
+    const toast = document.createElement('div');
+    toast.className = 'card toast-anim';
+    toast.style.cssText = `margin-bottom:10px;padding:12px;border-left:4px solid ${color};min-width:200px;box-shadow:0 10px 15px -3px rgba(0,0,0,0.4);border-radius:8px;`;
+    toast.innerHTML = `<strong>${title}</strong><p style="margin:4px 0 0;font-size:0.8rem;color:var(--text-muted);">${message}</p>`;
+    container.appendChild(toast);
+    setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 500); }, 3000);
+}

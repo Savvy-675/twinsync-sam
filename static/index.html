@@ -28,23 +28,41 @@
             <h2 class="text-h2" style="margin-bottom:10px;">TwinSync Cloud Login</h2>
             <p class="text-muted" style="margin-bottom:25px;">Secure real-time synchronization active.</p>
             <form id="auth-form" style="text-align:left;">
-                <div class="input-group">
-                    <label>Email Address</label>
-                    <input type="email" id="auth-email" required placeholder="name@domain.com">
+                <div id="auth-main-fields">
+                    <div class="input-group">
+                        <label>Email Address</label>
+                        <input type="email" id="auth-email" required placeholder="name@domain.com">
+                    </div>
+                    <div class="input-group">
+                        <label>Password</label>
+                        <input type="password" id="auth-password" required placeholder="••••••••">
+                    </div>
                 </div>
-                <div class="input-group">
-                    <label>Password</label>
-                    <input type="password" id="auth-password" required placeholder="••••••••">
+
+                <!-- Signup Only Fields -->
+                <div id="auth-signup-fields" style="display:none;margin-top:15px;border-top:1px solid var(--border);padding-top:15px;">
+                    <div class="input-group">
+                        <label>Full Name</label>
+                        <input type="text" id="auth-name" placeholder="John Doe">
+                    </div>
+                    <div style="display:flex;gap:10px;margin-top:10px;">
+                        <div style="flex:1;">
+                            <label style="font-size:0.75rem;">Work Start</label>
+                            <input type="time" id="auth-ob-start" value="09:00">
+                        </div>
+                        <div style="flex:1;">
+                            <label style="font-size:0.75rem;">Work End</label>
+                            <input type="time" id="auth-ob-end" value="17:00">
+                        </div>
+                    </div>
+                    <p class="text-muted" style="font-size:0.7rem;margin-top:8px;">🎯 <em>Working hours help your Twin plan your tasks better.</em></p>
                 </div>
-                <div class="input-group" id="reg-name-group" style="display:none;">
-                    <label>Display Name</label>
-                    <input type="text" id="auth-name" placeholder="John Doe">
-                </div>
-                <button type="submit" class="btn" id="btn-auth-submit" style="width:100%;margin-top:10px;">Sign In to Sync</button>
+
+                <button type="submit" class="btn" id="btn-auth-submit" style="width:100%;margin-top:20px;">Sign In to Sync</button>
             </form>
             <p style="margin-top:20px;font-size:0.9rem;color:var(--text-muted);">
                 <span id="auth-toggle-text">New to TwinSync?</span>
-                <a href="#" id="auth-toggle-link" style="color:var(--accent-primary);text-decoration:none;font-weight:bold;">Create Cloud Profile</a>
+                <a href="#" id="auth-toggle-btn" style="color:var(--accent-primary);text-decoration:none;font-weight:bold;">Create Cloud Profile</a>
             </p>
         </div>
     </div>
@@ -204,8 +222,29 @@
                         </div>
                     </div>
                     <button class="btn" style="width:100%;margin-top:14px;font-size:0.85rem;padding:10px;" onclick="document.getElementById('onboard-modal').classList.add('active')">
-                        <i class="fa-solid fa-sliders"></i> Update Preferences
+                        <i class="fa-solid fa-sliders"></i> Update Priorities
                     </button>
+                    
+                    <hr style="margin:20px 0;border:0.5px solid var(--border);">
+                    
+                    <p style="font-size:0.85rem;font-weight:600;margin-bottom:12px;">🛰️ Cloud Email Integration</p>
+                    <div id="email-settings-form">
+                        <div class="input-group">
+                            <label style="font-size:0.75rem;">IMAP Server</label>
+                            <input type="text" id="prof-imap" placeholder="imap.gmail.com" value="imap.gmail.com">
+                        </div>
+                        <div class="input-group">
+                            <label style="font-size:0.75rem;">Email Address</label>
+                            <input type="email" id="prof-email-user" placeholder="your@email.com">
+                        </div>
+                        <div class="input-group">
+                            <label style="font-size:0.75rem;">App Password</label>
+                            <input type="password" id="prof-email-pass" placeholder="•••• •••• •••• ••••">
+                        </div>
+                        <button class="btn" style="width:100%;font-size:0.8rem;background:var(--accent-secondary);" onclick="saveEmailSettings()">
+                            <i class="fa-solid fa-key"></i> Link Mail to Twin
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Task Summary -->

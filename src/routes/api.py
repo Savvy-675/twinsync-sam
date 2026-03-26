@@ -17,6 +17,8 @@ api_bp.route('/analytics', methods=['GET'])(analytics)
 api_bp.route('/email-sync', methods=['POST'])(email_sync)
 from src.controllers.ai_controller import onboard_profile
 api_bp.route('/profile/onboard', methods=['POST'])(onboard_profile)
+from src.controllers.auth_controller import update_email_config
+api_bp.route('/user/email-config', methods=['POST'])(update_email_config)
 
 # System & Tracking API
 api_bp.route('/health', methods=['GET'])(health_check)
