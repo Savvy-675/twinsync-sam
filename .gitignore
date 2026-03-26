@@ -15,7 +15,7 @@ node_modules/
 dist/
 
 # Capacitor
-android/
+# android/
 ios/
 
 # Environment
