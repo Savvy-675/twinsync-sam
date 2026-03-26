@@ -10,7 +10,7 @@ python-dotenv==1.2.2
 
 # Server & Real-time
 gunicorn==25.2.0
-eventlet==0.38.2
+eventlet==0.40.3
 requests==2.32.5
 
 # Data & ML (Actual usage)
