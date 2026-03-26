@@ -35,6 +35,7 @@ class User(db.Model):
     # Screen Time & Usage
     active_usage_today = db.Column(db.Integer, default=0)
     total_screen_time_today = db.Column(db.Integer, default=0)
+    daily_screen_time_goal = db.Column(db.Integer, default=120) # in minutes
 
     tasks = db.relationship('Task', backref='user', lazy=True)
     logs = db.relationship('ActivityLog', backref='user', lazy=True)

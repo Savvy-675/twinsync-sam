@@ -894,18 +894,55 @@ function updateUrgencyDisplay(data) {
         usageEl.textContent = `${mins}m Active Today`;
     }
     
+    // Update Dashboard Focus Goal Card
+    updateFocusGoalCard(data.active_usage);
+    
     // Check if workload vs remaining time is risky
     checkWorkloadUrgency();
+}
+
+function updateFocusGoalCard(activeSeconds) {
+    const u = window.appData?.analytics?.user || {};
+    const goalMins = u.daily_screen_time_goal || 120; // Default 2h
+    const currentMins = Math.floor(activeSeconds / 60);
+    const pct = Math.min(Math.round((currentMins / goalMins) * 100), 100);
+    
+    const bar = document.getElementById('focus-goal-bar');
+    const currentTxt = document.getElementById('focus-current-text');
+    const percentTxt = document.getElementById('focus-percent-text');
+    const goalTxt = document.getElementById('focus-goal-text');
+    
+    if (bar) bar.style.width = pct + '%';
+    if (currentTxt) currentTxt.textContent = `${currentMins}m spent`;
+    if (percentTxt) percentTxt.textContent = pct + '%';
+    if (goalTxt) goalTxt.textContent = `Goal: ${Math.floor(goalMins/60)}h ${goalMins % 60}m`;
+    
+    if (pct >= 100) {
+        bar.style.background = 'var(--danger)';
+    }
 }
 
 function checkWorkloadUrgency() {
     const u = window.appData?.analytics?.user || {};
     const tasks = window.appData?.tasks || [];
     const pending = tasks.filter(t => t.status === 'pending');
+    const activeSecs = window.appData?.analytics?.usage?.active_usage || 0;
+    const goalMins = u.daily_screen_time_goal || 120;
+    const currentMins = Math.floor(activeSecs / 60);
     
+    const banner = document.getElementById('urgency-banner');
+    if (!banner) return;
+
+    // 1. Goal Overload Warning
+    if (currentMins >= goalMins) {
+        banner.style.display = 'block';
+        banner.style.background = 'linear-gradient(90deg, #ef4444, #b91c1c)';
+        banner.innerHTML = `🚨 <strong>Focus Goal Reached!</strong> You've spent ${currentMins/60}h on screen today. Take a break!`;
+        return;
+    }
+
+    // 2. Workload Pressure Warning
     const totalEstMins = pending.reduce((sum, t) => sum + (t.estimated_duration || 30), 0);
-    
-    // Parse working_hours_end (e.g. "17:00")
     const now = new Date();
     const endStr = u.working_hours_end || "17:00";
     const [endH, endM] = endStr.split(':').map(Number);
@@ -914,13 +951,11 @@ function checkWorkloadUrgency() {
     
     const minsRemaining = (endTime - now) / 60000;
     
-    const banner = document.getElementById('urgency-banner');
     if (minsRemaining > 0 && totalEstMins > minsRemaining) {
-        if (banner) {
-            banner.style.display = 'block';
-            banner.innerHTML = `⚠️ <strong>Time Pressure!</strong> You have ${Math.round(totalEstMins/60)}h of work but only ${Math.round(minsRemaining/60)}h left in your workday.`;
-        }
-    } else if (banner) {
+        banner.style.display = 'block';
+        banner.style.background = 'linear-gradient(90deg, var(--warning), var(--danger))';
+        banner.innerHTML = `⚠️ <strong>High Pressure!</strong> ${Math.round(totalEstMins/60)}h of work remains with only ${Math.round(minsRemaining/60)}h in workday.`;
+    } else {
         banner.style.display = 'none';
     }
 }
