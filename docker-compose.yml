@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_USER=twin_user
+      - POSTGRES_PASSWORD=twin_password
+      - POSTGRES_DB=digital_twins
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U twin_user -d digital_twins"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - DATABASE_URL=postgresql://twin_user:twin_password@db:5432/digital_twins
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - FLASK_ENV=production
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ml_models_volume:/app/ml_models
+
+  worker:
+    build: .
+    command: celery -A src.tasks.celery_app worker --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql://twin_user:twin_password@db:5432/digital_twins
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ml_models_volume:/app/ml_models
+
+volumes:
+  postgres_data:
+  redis_data:
+  ml_models_volume:

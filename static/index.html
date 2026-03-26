@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Digital Twins Sync</title>
+    <meta name="description" content="AI-powered Digital Twin productivity dashboard with smart scheduling and email sync.">
+
+    <!-- PWA & Mobile -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="TwinSync">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/4712/4712139.png">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+
+    <!-- Auth Gateway -->
+    <div id="auth-overlay" class="modal-overlay active" style="background:var(--bg-primary);z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+        <div class="card" style="width:90%;max-width:400px;text-align:center;border-color:var(--accent-primary);">
+            <i class="fa-solid fa-cloud-lock fa-3x" style="color:var(--accent-secondary);margin-bottom:20px;"></i>
+            <h2 class="text-h2" style="margin-bottom:10px;">TwinSync Cloud Login</h2>
+            <p class="text-muted" style="margin-bottom:25px;">Secure real-time synchronization active.</p>
+            <form id="auth-form" style="text-align:left;">
+                <div class="input-group">
+                    <label>Email Address</label>
+                    <input type="email" id="auth-email" required placeholder="name@domain.com">
+                </div>
+                <div class="input-group">
+                    <label>Password</label>
+                    <input type="password" id="auth-password" required placeholder="••••••••">
+                </div>
+                <div class="input-group" id="reg-name-group" style="display:none;">
+                    <label>Display Name</label>
+                    <input type="text" id="auth-name" placeholder="John Doe">
+                </div>
+                <button type="submit" class="btn" id="btn-auth-submit" style="width:100%;margin-top:10px;">Sign In to Sync</button>
+            </form>
+            <p style="margin-top:20px;font-size:0.9rem;color:var(--text-muted);">
+                <span id="auth-toggle-text">New to TwinSync?</span>
+                <a href="#" id="auth-toggle-link" style="color:var(--accent-primary);text-decoration:none;font-weight:bold;">Create Cloud Profile</a>
+            </p>
+        </div>
+    </div>
+
+    <div id="app-container" style="display:none;">
+        <!-- Urgency Alert Banner (Hidden by default) -->
+        <div id="urgency-banner" style="display:none;background:linear-gradient(90deg,var(--danger),#c2410c);color:white;padding:12px;text-align:center;font-size:0.85rem;font-weight:bold;z-index:100;position:sticky;top:0;">
+            ⚠️ Time Pressure Detected
+        </div>
+        <!-- Header -->
+        <header>
+            <div style="display:flex;flex-direction:column;">
+                <h1>TwinSync<span style="color:var(--accent-primary)">.Cloud</span></h1>
+                <div class="ai-status"><span class="pulse-dot"></span> System Synchronization Active</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;">
+                <button id="btn-email-sync" class="btn" style="padding:6px 12px;font-size:0.75rem;background:linear-gradient(135deg,#10b981,#06b6d4);" title="Sync tasks from Gmail">
+                    <i class="fa-solid fa-envelope-circle-check"></i> Sync Email
+                </button>
+                <div id="user-avatar" style="width:36px;height:36px;border-radius:18px;background:linear-gradient(135deg,var(--accent-primary),var(--accent-secondary));display:flex;justify-content:center;align-items:center;font-weight:bold;cursor:pointer;" title="Logout" onclick="logout()">D</div>
+            </div>
+        </header>
+
+        <main id="main-content">
+            <div id="loading" style="display:none;text-align:center;padding:50px;">
+                <i class="fa-solid fa-circle-notch fa-spin fa-3x" style="color:var(--accent-primary)"></i>
+            </div>
+
+            <!-- HOME VIEW -->
+            <section id="view-dashboard" class="view-section active">
+                <div class="card" style="text-align:center;position:relative;">
+                    <h2 class="text-h2">Your Dashboard</h2>
+                    <p class="text-muted" style="margin-bottom:15px;">Today's Productivity Overview</p>
+                    <div class="score-container">
+                        <div class="score-circle" id="score-circle" style="--score:0;">
+                            <div class="score-inner">
+                                <span class="score-value" id="score-text">0</span>
+                                <span style="font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">Productivity</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display:flex;justify-content:center;margin-top:20px;text-align:center;">
+                        <div><p class="text-muted">Delay Rate</p><h3 id="delay-text" style="color:var(--danger)">0%</h3></div>
+                    </div>
+                </div>
+                <h3 class="text-h2" style="margin:20px 0 10px;">🔥 Top 3 Important Tasks</h3>
+                <div id="top-tasks-container"></div>
+                <h3 class="text-h2" style="margin:20px 0 10px;">📊 Recent Activity</h3>
+                <div id="insights-container"></div>
+            </section>
+
+            <!-- TASKS VIEW -->
+            <section id="view-tasks" class="view-section">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                    <h2 class="text-h2">Task Queue</h2>
+                    <div style="display:flex;gap:8px;">
+                        <select id="task-filter" style="padding:6px 10px;border-radius:8px;background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);font-size:0.8rem;">
+                            <option value="all">All</option>
+                            <option value="critical">🔴 Critical</option>
+                            <option value="high">🟠 High</option>
+                            <option value="medium">🟡 Medium</option>
+                            <option value="low">🟢 Low</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="tasks-list"></div>
+            </section>
+
+            <!-- CALENDAR VIEW -->
+            <section id="view-calendar" class="view-section">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                    <h2 class="text-h2">Calendar</h2>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <button id="cal-view-month" class="btn" style="padding:5px 10px;font-size:0.8rem;">Month</button>
+                        <button id="cal-view-week" class="btn" style="padding:5px 10px;font-size:0.8rem;background:var(--bg-card);">Week</button>
+                        <button id="cal-toggle-completed" class="btn" style="padding:5px 10px;font-size:0.8rem;background:var(--bg-card);color:var(--text-muted);">✅ Show Done</button>
+                        <button id="cal-prev" class="btn" style="padding:5px 12px;">‹</button>
+                        <span id="cal-month-label" style="padding:5px 10px;font-weight:bold;"></span>
+                        <button id="cal-next" class="btn" style="padding:5px 12px;">›</button>
+                    </div>
+                </div>
+                <div class="calendar-grid" id="calendar-grid"></div>
+                <div id="cal-day-tasks" style="margin-top:16px;"></div>
+            </section>
+
+            <!-- PLANNER VIEW -->
+            <section id="view-planner" class="view-section">
+                <h2 class="text-h2" style="margin-bottom:16px;">Smart Planner</h2>
+                <div class="card" style="text-align:center;">
+                    <i class="fa-solid fa-wand-magic-sparkles fa-3x" style="color:var(--accent-secondary);margin-bottom:15px;"></i>
+                    <p class="text-muted" style="margin-bottom:20px;">Let AI auto-schedule your active tasks based on your peak focus time.</p>
+                    <button class="btn" id="btn-generate-day">Generate My Day</button>
+                </div>
+                <div id="planner-timeline" style="margin-top:20px;"></div>
+            </section>
+
+            <!-- INSIGHTS VIEW -->
+            <section id="view-insights" class="view-section">
+                <h2 class="text-h2" style="margin-bottom:16px;">Advanced Analytics</h2>
+                <div class="card">
+                    <h3>7-Day Productivity Trend</h3>
+                    <canvas id="trendChart" width="400" height="250"></canvas>
+                </div>
+            </section>
+
+            <!-- PROFILE VIEW -->
+            <section id="view-profile" class="view-section">
+                <h2 class="text-h2" style="margin-bottom:16px;">👤 User Account</h2>
+
+                <!-- Personality Hero Card -->
+                <div class="card" style="text-align:center;background:linear-gradient(145deg,rgba(15,23,42,0.8),rgba(2,6,23,0.9));border-color:rgba(139,92,246,0.3);padding:28px 20px;">
+                    <i class="fa-solid fa-user-gear fa-3x" style="color:var(--accent-secondary);margin-bottom:14px;display:block;"></i>
+                    <p id="profile-name" style="font-size:1.1rem;font-weight:700;margin-top:10px;"></p>
+                    <p id="profile-email" class="text-muted" style="font-size:0.8rem;margin-top:2px;"></p>
+                </div>
+
+                <!-- Stats Grid -->
+                <div class="profile-stat-grid">
+                    <div class="profile-stat-item">
+                        <div class="profile-stat-value" id="pstat-score">--</div>
+                        <div class="profile-stat-label">Productivity</div>
+                    </div>
+                    <div class="profile-stat-item">
+                        <div class="profile-stat-value" id="pstat-delay" style="background:linear-gradient(135deg,var(--danger),var(--warning));background-clip:text;-webkit-background-clip:text;">--</div>
+                        <div class="profile-stat-label">Delay Rate</div>
+                    </div>
+                    <div class="profile-stat-item">
+                        <div class="profile-stat-value" id="usage-time-display" style="color:var(--accent-primary);">0m</div>
+                        <div class="profile-stat-label">Active Today</div>
+                    </div>
+                </div>
+
+
+                <!-- Habits & Preferences -->
+                <div class="card" style="padding:16px;">
+                    <p style="font-size:0.85rem;font-weight:600;margin-bottom:12px;">⚙️ Smart Planner Preferences</p>
+                    <div style="display:flex;flex-direction:column;gap:8px;">
+                        <div style="display:flex;justify-content:space-between;">
+                            <span class="text-muted" style="font-size:0.82rem;">Role</span>
+                            <strong id="pref-type" style="font-size:0.82rem;">—</strong>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;">
+                            <span class="text-muted" style="font-size:0.82rem;">Working Hours</span>
+                            <strong id="pref-hours" style="font-size:0.82rem;">—</strong>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;">
+                            <span class="text-muted" style="font-size:0.82rem;">Peak Focus Time</span>
+                            <strong id="pref-focus" style="font-size:0.82rem;">—</strong>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;">
+                            <span class="text-muted" style="font-size:0.82rem;">Avg Task Duration</span>
+                            <strong id="pref-duration" style="font-size:0.82rem;">—</strong>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;">
+                            <span class="text-muted" style="font-size:0.82rem;">Daily Goal</span>
+                            <strong id="pref-goal" style="font-size:0.82rem;">—</strong>
+                        </div>
+                    </div>
+                    <button class="btn" style="width:100%;margin-top:14px;font-size:0.85rem;padding:10px;" onclick="document.getElementById('onboard-modal').classList.add('active')">
+                        <i class="fa-solid fa-sliders"></i> Update Preferences
+                    </button>
+                </div>
+
+                <!-- Task Summary -->
+                <div class="card" style="padding:16px;">
+                    <p style="font-size:0.85rem;font-weight:600;margin-bottom:12px;">📋 Task Summary</p>
+                    <div id="profile-task-summary" style="display:flex;flex-direction:column;gap:6px;"></div>
+                </div>
+
+            </section>
+        </main>
+
+        <!-- FABs -->
+        <button id="fab-add" class="fab" style="display:none;z-index:20;"><i class="fa-solid fa-plus"></i></button>
+        <button id="fab-chat" class="fab chat-fab" style="z-index:20;left:20px;background:linear-gradient(135deg,#10b981,#06b6d4);"><i class="fa-solid fa-robot"></i></button>
+
+        <!-- Navigation -->
+        <nav class="bottom-bar">
+            <div class="nav-item active" data-target="view-dashboard"><i class="fa-solid fa-house"></i><span>Home</span></div>
+            <div class="nav-item" data-target="view-tasks"><i class="fa-solid fa-list-check"></i><span>Tasks</span></div>
+            <div class="nav-item" data-target="view-calendar"><i class="fa-solid fa-calendar-days"></i><span>Calendar</span></div>
+            <div class="nav-item" data-target="view-planner"><i class="fa-solid fa-calendar-day"></i><span>Planner</span></div>
+            <div class="nav-item" data-target="view-profile"><i class="fa-solid fa-user-astronaut"></i><span>Profile</span></div>
+        </nav>
+
+        <!-- Chat Modal -->
+        <div id="chat-overlay" class="chat-overlay">
+            <div class="chat-window predictive-chat">
+                <div class="chat-header">
+                    <div style="display:flex;align-items:center;">
+                        <i class="fa-solid fa-robot" style="margin-right:8px;color:var(--success);"></i>
+                        <h3>Twin Assistant</h3>
+                    </div>
+                    <button class="close-chat"><i class="fa-solid fa-angle-down"></i></button>
+                </div>
+                <div id="chat-messages" class="chat-messages">
+                    <div class="msg assistant-msg">Hello! I'm analyzing your ML pipeline data. You can ask me anything, or say <strong>"add task [name] by [date]"</strong> to create tasks instantly!</div>
+                </div>
+                <div class="chat-input-area">
+                    <input type="text" id="chat-input" placeholder="Ask or say 'add task study by Friday'" autocomplete="off">
+                    <button id="send-chat"><i class="fa-solid fa-paper-plane"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Task Modal -->
+        <div id="task-modal" class="modal-overlay">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="text-h2">New Task</h2>
+                    <button class="close-modal"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <form id="add-task-form">
+                    <div class="input-group">
+                        <label>Task Title</label>
+                        <input type="text" id="task-title" required placeholder="E.g., Review PR #44">
+                    </div>
+                    <div class="input-group">
+                        <label>Category</label>
+                        <select id="task-category" style="padding:10px;border-radius:8px;background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);width:100%;">
+                            <option value="work">Work</option>
+                            <option value="study">Study</option>
+                            <option value="personal">Personal</option>
+                            <option value="general">General</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Deadline <span style="color:var(--text-muted);font-size:0.8rem;">(e.g., "tomorrow", "next Friday", "in 3 days")</span></label>
+                        <input type="text" id="task-deadline" placeholder="tomorrow at 5pm" autocomplete="off">
+                        <small id="deadline-preview" style="color:var(--accent-secondary);font-size:0.78rem;margin-top:4px;display:block;"></small>
+                    </div>
+                    <div class="input-group">
+                        <label>Priority <span style="color:var(--text-muted);font-size:0.8rem;">(auto-detected from deadline)</span></label>
+                        <select id="task-priority" style="padding:10px;border-radius:8px;background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);width:100%;">
+                            <option value="">Auto (from deadline)</option>
+                            <option value="critical">🔴 Critical</option>
+                            <option value="high">🟠 High</option>
+                            <option value="medium">🟡 Medium</option>
+                            <option value="low">🟢 Low</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn" style="width:100%;margin-top:10px;">Add Task</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Onboarding Modal -->
+        <div id="onboard-modal" class="modal-overlay">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="text-h2">Configure Smart Planner</h2>
+                    <button class="close-onboard" style="background:none;border:none;color:var(--text-primary);cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <p class="text-muted" style="margin-bottom:15px;font-size:0.9rem;">To generate your ideal day plan, we need a few details about your routine.</p>
+                <form id="onboard-form">
+                    <div class="input-group">
+                        <label>I am a:</label>
+                        <select id="ob-type" style="padding:10px;border-radius:8px;background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);width:100%;">
+                            <option value="Student">Student</option>
+                            <option value="Working Professional">Working Professional</option>
+                        </select>
+                    </div>
+                    <div class="input-group" style="display:flex;gap:10px;">
+                        <div style="flex:1;">
+                            <label>Working Hours Start</label>
+                            <input type="time" id="ob-start" required value="09:00">
+                        </div>
+                        <div style="flex:1;">
+                            <label>Working Hours End</label>
+                            <input type="time" id="ob-end" required value="17:00">
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label>Preferred Focus Time</label>
+                        <select id="ob-focus" style="padding:10px;border-radius:8px;background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);width:100%;">
+                            <option value="Morning">Morning (8 AM - 12 PM)</option>
+                            <option value="Afternoon">Afternoon (12 PM - 5 PM)</option>
+                            <option value="Evening">Evening (5 PM - 10 PM)</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn" id="btn-onboard-submit" style="width:100%;margin-top:10px;background:linear-gradient(135deg,#10b981,#06b6d4);">Save & Generate Plan</button>
+                </form>
+            </div>
+        </div>
+
+        <div id="toast-container"></div>
+
+        <!-- Focus Mode Timer Overlay -->
+        <div id="focus-overlay" style="display:none;position:fixed;bottom:80px;right:20px;z-index:200;">
+            <div class="card" style="padding:16px 20px;text-align:center;border:1px solid var(--accent-primary);min-width:160px;">
+                <div style="font-size:0.7rem;color:var(--accent-secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">🍅 Focus Session</div>
+                <div id="focus-timer-display" style="font-size:2rem;font-weight:700;font-family:var(--font-head);color:var(--text-primary);">25:00</div>
+                <div style="display:flex;gap:8px;margin-top:10px;justify-content:center;">
+                    <button id="focus-start-btn" class="btn" style="padding:5px 12px;font-size:0.78rem;background:var(--success);">▶ Start</button>
+                    <button id="focus-reset-btn" class="btn" style="padding:5px 12px;font-size:0.78rem;background:var(--bg-card);">↺</button>
+                    <button id="focus-close-btn" class="btn" style="padding:5px 10px;font-size:0.78rem;background:none;border:1px solid var(--border);">✕</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Focus FAB -->
+        <button id="fab-focus" class="fab" style="z-index:20;right:80px;bottom:70px;width:42px;height:42px;font-size:1rem;background:linear-gradient(135deg,#f59e0b,#ef4444);" title="Focus Mode">
+            <i class="fa-solid fa-brain"></i>
+        </button>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').then(reg => {
+            console.log('SW registered!', reg);
+          }).catch(err => console.log('SW registration failed', err));
+        });
+      }
+    </script>
+</body>
+</html>

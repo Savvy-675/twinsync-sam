@@ -1,0 +1,8 @@
+{
+  "appId": "com.twinsync.app",
+  "appName": "TwinSync",
+  "webDir": "static",
+  "server": {
+    "androidScheme": "https"
+  }
+}
