@@ -13,8 +13,11 @@ class UserRepository:
     @staticmethod
     def create(user_data):
         user = User(
-            name=user_data['name'],
+            name=user_data.get('name', 'New User'),
             email=user_data['email'],
+            working_hours_start=user_data.get('working_hours_start', '09:00'),
+            working_hours_end=user_data.get('working_hours_end', '17:00'),
+            daily_screen_time_goal=user_data.get('daily_screen_time_goal', 120),
             preferences=user_data.get('preferences', 'morning')
         )
         user.set_password(user_data['password'])

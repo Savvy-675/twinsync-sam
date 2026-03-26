@@ -1,6 +1,7 @@
-const isAndroid = window.location.origin.includes('capacitor://');
-const API_BASE = (window.location.origin.includes('localhost') && !isAndroid) ? '/api' : 'https://twinsync-sam.onrender.com/api';
-const SOCKET_BASE = (window.location.origin.includes('localhost') && !isAndroid) ? window.location.origin : 'https://twinsync-sam.onrender.com';
+const isAndroid = window.location.origin.includes('capacitor://') || window.location.origin.includes('http://localhost');
+// If on localhost (Web), use /api. If on localhost (Android), we MUST use the full production URL!
+const API_BASE = (window.location.origin.includes('localhost') && !window.Capacitor?.isNativePlatform()) ? '/api' : 'https://twinsync-sam.onrender.com/api';
+const SOCKET_BASE = (window.location.origin.includes('localhost') && !window.Capacitor?.isNativePlatform()) ? window.location.origin : 'https://twinsync-sam.onrender.com';
 
 // DOM Elements
 const views = document.querySelectorAll('.view-section');
@@ -667,6 +668,7 @@ function renderCharts() {
     });
     const completedData = labels.map(l => completedByDay[l] || 0);
 
+    if (charts.trend) charts.trend.destroy();
     charts.trend = new Chart(ctx, {
         type: 'line',
         data: {
