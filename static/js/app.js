@@ -1,5 +1,6 @@
-const API_BASE = window.location.origin.includes('localhost') ? '/api' : 'https://twinsync-sam.onrender.com/api';
-const SOCKET_BASE = window.location.origin.includes('localhost') ? window.location.origin : 'https://twinsync-sam.onrender.com';
+const isAndroid = window.location.origin.includes('capacitor://');
+const API_BASE = (window.location.origin.includes('localhost') && !isAndroid) ? '/api' : 'https://twinsync-sam.onrender.com/api';
+const SOCKET_BASE = (window.location.origin.includes('localhost') && !isAndroid) ? window.location.origin : 'https://twinsync-sam.onrender.com';
 
 // DOM Elements
 const views = document.querySelectorAll('.view-section');

@@ -11,6 +11,7 @@ from flasgger import Swagger
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_caching import Cache
+from flask_cors import CORS
 from src.utils.errors import handle_exception
 
 # Global extensions
@@ -28,10 +29,13 @@ def create_app():
     
     # 2. Initialize JWT for Cloud Auth
     jwt.init_app(app)
+
+    # 2.5 Initialize Global CORS
+    CORS(app, resources={r"/*": {"origins": ["*", "capacitor://localhost"]}})
     
     # 3. Initialize WebSocket Support
     # Only using a message queue if Redis is explicitly available (Non-Native)
-    socketio.init_app(app, message_queue=app.config.get('SOCKETIO_REDIS_URL'))
+    socketio.init_app(app, message_queue=app.config.get('SOCKETIO_REDIS_URL'), cors_allowed_origins=["*", "capacitor://localhost"])
     
     # 4. Initialize Celery Task Broker
     init_celery_task_broker(app)

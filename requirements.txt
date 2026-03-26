@@ -11,6 +11,7 @@ python-dotenv==1.2.2
 # Server & Real-time
 gunicorn==25.2.0
 requests==2.32.5
+Flask-Cors==5.0.0
 
 # Data & ML (Actual usage)
 scikit-learn==1.7.2
