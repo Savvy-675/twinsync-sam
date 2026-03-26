@@ -101,6 +101,17 @@ header h1 {
     animation: pulseDot 2s infinite ease-in-out;
 }
 
+#urgency-banner.critical {
+    background: linear-gradient(90deg, #b91c1c, #991b1b) !important;
+    animation: bannerPulse 1.5s infinite ease-in-out !important;
+}
+
+@keyframes bannerPulse {
+    0% { opacity: 0.9; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.02); }
+    100% { opacity: 0.9; transform: scale(1); }
+}
+
 @keyframes pulseDot {
     0% {
         transform: scale(0.8);

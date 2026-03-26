@@ -55,7 +55,11 @@
                             <input type="time" id="auth-ob-end" value="17:00">
                         </div>
                     </div>
-                    <p class="text-muted" style="font-size:0.7rem;margin-top:8px;">🎯 <em>Working hours help your Twin plan your tasks better.</em></p>
+                    <div class="input-group" style="margin-top:10px;">
+                        <label style="font-size:0.75rem;">Daily Screen Limit (min)</label>
+                        <input type="number" id="auth-ob-limit" value="120" min="15" step="15">
+                    </div>
+                    <p class="text-muted" style="font-size:0.7rem;margin-top:8px;">🎯 <em>Working hours & limits help your Twin plan your tasks better.</em></p>
                 </div>
 
                 <button type="submit" class="btn" id="btn-auth-submit" style="width:100%;margin-top:20px;">Sign In to Sync</button>
@@ -106,6 +110,21 @@
                     </div>
                     <div style="display:flex;justify-content:center;margin-top:20px;text-align:center;">
                         <div><p class="text-muted">Delay Rate</p><h3 id="delay-text" style="color:var(--danger)">0%</h3></div>
+                    </div>
+                </div>
+
+                <!-- 📵 FOCUS GOAL CARD -->
+                <div class="card" id="focus-goal-card" style="padding:16px; border-color:rgba(139,92,246,0.2);">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                        <span style="font-size:0.85rem;font-weight:600;"><i class="fa-solid fa-mobile-screen-button" style="color:var(--accent-secondary);margin-right:6px;"></i> Daily Screen Health</span>
+                        <span id="focus-percent-text" style="font-size:0.8rem;font-weight:bold;color:var(--accent-primary);">0%</span>
+                    </div>
+                    <div style="background:var(--bg-primary);border-radius:10px;height:12px;overflow:hidden;margin-bottom:10px;border:1px solid var(--border);">
+                        <div id="focus-goal-bar" style="width:0%;height:100%;background:linear-gradient(90deg,var(--accent-primary),var(--accent-secondary));transition:width 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);"></div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;font-size:0.75rem;">
+                        <span id="focus-current-text" class="text-muted">0m spent</span>
+                        <span id="focus-goal-text" class="text-muted">Goal: 2h 0m</span>
                     </div>
                 </div>
                 <h3 class="text-h2" style="margin:20px 0 10px;">🔥 Top 3 Important Tasks</h3>
@@ -219,6 +238,10 @@
                         <div style="display:flex;justify-content:space-between;">
                             <span class="text-muted" style="font-size:0.82rem;">Daily Goal</span>
                             <strong id="pref-goal" style="font-size:0.82rem;">—</strong>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;">
+                            <span class="text-muted" style="font-size:0.82rem;">Screen Limit</span>
+                            <strong id="pref-limit" style="font-size:0.82rem;">—</strong>
                         </div>
                     </div>
                     <button class="btn" style="width:100%;margin-top:14px;font-size:0.85rem;padding:10px;" onclick="document.getElementById('onboard-modal').classList.add('active')">

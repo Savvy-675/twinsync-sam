@@ -178,6 +178,7 @@ authForm.addEventListener('submit', async (e) => {
             payload.name = document.getElementById('auth-name').value || "New Explorer";
             payload.working_hours_start = document.getElementById('auth-ob-start').value || "09:00";
             payload.working_hours_end = document.getElementById('auth-ob-end').value || "17:00";
+            payload.daily_screen_time_goal = parseInt(document.getElementById('auth-ob-limit')?.value) || 120;
         }
 
         const res = await fetch(`${API_BASE}${endpoint}`, {
@@ -598,7 +599,11 @@ if (onboardForm) {
         const res = await apiFetch('/profile/onboard', {
             method: 'POST',
             body: JSON.stringify({
-                user_type: type, working_hours_start: start, working_hours_end: end, preferred_work_time: focus
+                user_type: type, 
+                working_hours_start: start, 
+                working_hours_end: end, 
+                preferred_work_time: focus,
+                daily_screen_time_goal: parseInt(document.getElementById('ob-limit')?.value) || 120
             })
         });
 
@@ -952,29 +957,56 @@ function initIdleTracker() {
         Notification.requestPermission();
     }
 }
-// -------- SCREEN TIME TRACKER --------
-
+// -------- SCREEN TIME TRACKER (ANDROID NATIVE + WEB FALLBACK) --------
 let activeSeconds = 0;
-function initScreenTimeTracker() {
+let lastNativeUsage = 0;
+
+async function initScreenTimeTracker() {
+    console.log("Initializing Screen Time Intelligence...");
+    
+    // 🟠 WEB TRACKER: Track active tab time
     setInterval(() => {
-        if (document.visibilityState === 'visible') {
-            activeSeconds++;
-        }
+        if (document.visibilityState === 'visible') activeSeconds++;
     }, 1000);
 
-    // Sync to backend every 60 seconds
+    // 🔴 NATIVE TRACKER: Fetch Phone Usage (UsageStatsManager)
     setInterval(async () => {
-        if (activeSeconds > 0) {
+        let currentTotalSeconds = 0;
+        const isNative = window.Capacitor && window.Capacitor.isNativePlatform();
+
+        if (isNative) {
+            try {
+                // UsageStatsManager provides total time in ms since start of day
+                const { UsageStatsManager } = Capacitor.Plugins;
+                if (UsageStatsManager) {
+                    const stats = await UsageStatsManager.queryUsageStats({ 
+                        startTime: new Date().setHours(0,0,0,0), 
+                        endTime: Date.now() 
+                    });
+                    // Sum all app usage (this is what the user wants: "phone screen time")
+                    currentTotalSeconds = Math.round(Object.values(stats || {}).reduce((s, a) => s + (a.totalTimeInForeground || 0), 0) / 1000);
+                }
+            } catch (e) {
+                console.warn("Native UsageStats failed (Permission missing?). Falling back to tab tracking.", e);
+            }
+        }
+
+        // Sync with backend: If native worked, send the absolute total. If not, send the increment.
+        const payload = isNative && currentTotalSeconds > 0 
+            ? { total_seconds: currentTotalSeconds, is_absolute: true } 
+            : { active_seconds: activeSeconds, is_absolute: false };
+
+        if (activeSeconds > 0 || currentTotalSeconds > 0) {
             const res = await apiFetch('/screentime', {
                 method: 'POST',
-                body: JSON.stringify({ active_seconds: activeSeconds })
+                body: JSON.stringify(payload)
             });
             if (res.success) {
-                activeSeconds = 0; // Reset after successful sync
+                if (!isNative) activeSeconds = 0; // Reset tab tracker on success
                 updateUrgencyDisplay(res.data);
             }
         }
-    }, 60000);
+    }, 60000); // Sync every minute
 }
 
 function updateUrgencyDisplay(data) {
@@ -1002,14 +1034,21 @@ function updateFocusGoalCard(activeSeconds) {
     const percentTxt = document.getElementById('focus-percent-text');
     const goalTxt = document.getElementById('focus-goal-text');
     
-    if (bar) bar.style.width = pct + '%';
+    if (bar) {
+        bar.style.width = pct + '%';
+        if (pct >= 100) {
+            bar.style.background = 'linear-gradient(90deg, #ef4444, #991b1b)';
+            bar.style.boxShadow = '0 0 10px rgba(239, 68, 68, 0.4)';
+        } else if (pct >= 80) {
+            bar.style.background = 'linear-gradient(90deg, #f59e0b, #ef4444)';
+        }
+    }
     if (currentTxt) currentTxt.textContent = `${currentMins}m spent`;
     if (percentTxt) percentTxt.textContent = pct + '%';
     if (goalTxt) goalTxt.textContent = `Goal: ${Math.floor(goalMins/60)}h ${goalMins % 60}m`;
     
-    if (pct >= 100) {
-        bar.style.background = 'var(--danger)';
-    }
+    const limitTxt = document.getElementById('pref-limit');
+    if (limitTxt) limitTxt.textContent = `${goalMins} mins`;
 }
 
 function checkWorkloadUrgency() {
@@ -1026,9 +1065,11 @@ function checkWorkloadUrgency() {
     // 1. Goal Overload Warning
     if (currentMins >= goalMins) {
         banner.style.display = 'block';
-        banner.style.background = 'linear-gradient(90deg, #ef4444, #b91c1c)';
-        banner.innerHTML = `🚨 <strong>Focus Goal Reached!</strong> You've spent ${currentMins/60}h on screen today. Take a break!`;
+        banner.classList.add('critical');
+        banner.innerHTML = `🚨 <strong>Focus Goal Reached!</strong> Phone usage: ${Math.floor(currentMins/60)}h ${currentMins%60}m limit exceeded. Take a break!`;
         return;
+    } else {
+        banner.classList.remove('critical');
     }
 
     // 2. Workload Pressure Warning

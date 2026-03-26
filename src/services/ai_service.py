@@ -7,18 +7,17 @@ logger = logging.getLogger('AIService')
 
 class AIService:
     @staticmethod
-    def generate_simulated_response(context):
+    def generate_simulated_response(context, error_msg="No API response"):
         acc = context.get('acc', 0)
         samps = context.get('samps', 0)
         return f"""**Your Digital Twin is responding in local mode!** 🧠✨
+        
+**Debug Info:** {error_msg}
 
 Based on your current ML Synchrony:
  - **Accuracy:** {acc}%
  - **History:** {samps} Samples
- - **Status:** Local Processing Active
-
-You are currently performing as a **'High-Efficiency Architect'**. 
-I recommend focusing on your next high-priority task. Is there anything else I can help you with?"""
+ - **Status:** Local Processing Active"""
 
     @staticmethod
     def detect_task_intent(prompt):
@@ -75,8 +74,10 @@ Strict Rules:
 5. Be concise, supportive and data-driven. Use Markdown for formatting.
 6. If the user is creating a task, confirm it naturally (e.g. \"Got it! I've added X to your task list.\")"""
 
+        last_error = "Keys missing in Cloud Env"
+        
         # 🥇 PRIMARY: Groq (LLaMA 3)
-        if Config.GROQ_API_KEY:
+        if Config.GROQ_API_KEY and len(Config.GROQ_API_KEY) > 5:
             try:
                 client = Groq(api_key=Config.GROQ_API_KEY)
                 response = client.chat.completions.create(
@@ -88,30 +89,25 @@ Strict Rules:
                     max_tokens=512,
                     temperature=0.7,
                 )
-                logger.info("Groq LLaMA 3 response generated.")
                 return response.choices[0].message.content
             except Exception as e:
-                logger.error(f"Groq API failure: {e}")
+                last_error = f"Groq Error: {str(e)}"
+                logger.error(last_error)
 
         # 🥈 FALLBACK: Gemini
-        if Config.GEMINI_API_KEY:
+        if Config.GEMINI_API_KEY and len(Config.GEMINI_API_KEY) > 5:
             try:
                 from google import genai
                 client = genai.Client(api_key=Config.GEMINI_API_KEY)
-                for model_id in ['gemini-1.5-flash', 'gemini-2.0-flash']:
-                    try:
-                        response = client.models.generate_content(
-                            model=model_id,
-                            config={'system_instruction': system_instruction},
-                            contents=prompt
-                        )
-                        return response.text
-                    except Exception as e:
-                        if "404" in str(e) or "not found" in str(e).lower():
-                            continue
-                        break
+                response = client.models.generate_content(
+                    model='gemini-1.5-flash',
+                    config={'system_instruction': system_instruction},
+                    contents=prompt
+                )
+                return response.text
             except Exception as e:
-                logger.error(f"Gemini fallback failure: {e}")
+                last_error = f"Gemini Error: {str(e)}"
+                logger.error(last_error)
 
-        # 🛑 FINAL: Local simulation
-        return AIService.generate_simulated_response(context)
+        # 🛑 FINAL: Local simulation (with debug info)
+        return AIService.generate_simulated_response(context, error_msg=last_error)
