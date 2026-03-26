@@ -1,3 +1,4 @@
+# TwinSync Cloud Entry Point - V2 Architecture (Stability: Gthread)
 from src import create_app
 from src.socket_instance import socketio
 
