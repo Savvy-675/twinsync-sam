@@ -1,3 +1,6 @@
+import eventlet
+eventlet.monkey_patch()
+
 from src import create_app
 from src.socket_instance import socketio
 
