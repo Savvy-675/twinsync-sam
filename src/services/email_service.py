@@ -18,8 +18,8 @@ TASK_KEYWORDS = [
 # Strictly ignore these sources/types
 IGNORE_KEYWORDS = [
     'snapchat', 'instagram', 'facebook', 'tiktok', 'twitter', 'x.com',
-    'promotion', 'sale', 'offer', 'discount', 'newsletter', 'unsubscribe',
-    'marketing', 'spam', 'deal', 'verification code', 'otp', 'security alert',
+    'promotion', 'sale', 'offer', 'discount',
+    'spam', 'deal', 'verification code', 'otp', 'security alert',
     'stories', 'friend request', 'followed you'
 ]
 
@@ -35,7 +35,7 @@ PRIORITY_DOMAINS = [
 
 class EmailService:
     @staticmethod
-    def fetch_emails(user, max_emails=20):
+    def fetch_emails(user, max_emails=50):
         """Connect to user's personalized mail server or fallback to default."""
         email_user = getattr(user, 'email_user', None) or Config.SMTP_USER
         email_pass = None
@@ -102,7 +102,7 @@ class EmailService:
 
         except Exception as e:
             logger.error(f"IMAP connection failed: {e}")
-            return []
+            raise Exception(f"IMAP connection failed: Verify your credentials or app password. Details: {str(e)}")
 
     @staticmethod
     def filter_task_emails(emails):
@@ -112,11 +112,14 @@ class EmailService:
             text = (e['subject'] + ' ' + e['body']).lower()
             sender = e['sender'].lower()
             
-            # Explicitly Ignore low-value emails
-            if any(kw in text or kw in sender for kw in IGNORE_KEYWORDS):
-                continue
-
+            # 1. Always include Priority Domains
             is_priority_source = any(domain in sender for domain in PRIORITY_DOMAINS)
+            
+            # 2. Hard Ignore for unhelpful domains *unless* they are priority
+            if not is_priority_source and any(kw in text or kw in sender for kw in IGNORE_KEYWORDS):
+                continue
+                
+            # 3. Check for actionable keywords
             has_urgent_keyword = any(kw in text for kw in TASK_KEYWORDS)
             
             if is_priority_source or has_urgent_keyword:
@@ -147,12 +150,12 @@ Sender: {email_data['sender']}
 
 Rules:
 - If no deadline is mentioned, return null for deadline.
-- ONLY create task if deadline exists, event is scheduled, or action is required. If not, return {"title": ""}.
+- ONLY create task if an event is scheduled, an action is required, or it's an assignment. If no task can be extracted, return {"title": ""}.
 - SOURCE FILTERING:
   - LinkedIn: ONLY extract if related to jobs, interviews, or meetings. Avoid "new follower" or "people you may know".
-  - Classroom: Extract assignments and deadlines.
+  - Classroom: Extract assignments.
   - Work/Official: Extract action items or meetings.
-- URGENCY DETECTION: If the deadline is within 1 to 5 days, strictly mark priority as "high".
+- URGENCY DETECTION: If the deadline is within 1 to 5 days, strictly mark priority as "high". If missing deadline, use "medium".
 - Return ONLY the JSON, nothing else. "title" should be empty if the email is not an actionable task.
 """
 

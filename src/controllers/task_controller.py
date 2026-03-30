@@ -70,18 +70,15 @@ def update_task(task_id):
     user_id = get_jwt_identity()
     new_status = request.json.get('status')
     try:
-        task = TaskRepository.update_status(task_id, new_status, user_id=user_id)
+        task = TaskService.update_task_status(task_id, new_status, user_id=user_id)
         if not task:
             return error_response(message="Task not found or access denied.", status_code=403)
             
-        # Real-time synchronization
-        SocketService.emit_task_update(user_id, f"Task '{task.title}' status updated to {new_status}.", task.id)
-        
         if new_status in ['completed', 'delayed']:
             # ASYNC Offloading: Retrain model in the background worker
             train_model_async.delay(user_id)
             
-        return success_response(message="Task status updated. Syncing behavioral loop...")
+        return success_response(message="Task status updated. Analytics refreshed & Syncing behavioral loop...")
     except Exception as e:
         return error_response(message=str(e))
 

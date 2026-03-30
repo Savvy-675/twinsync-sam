@@ -94,8 +94,11 @@ def email_sync():
         user = UserRepository.get_by_email('demo@twin.local')
         user_id = str(user.id) if user else "1"
 
-    from src.services.email_service import EmailService
-    extracted_tasks = EmailService.fetch_and_parse_emails(user_id)
+    try:
+        from src.services.email_service import EmailService
+        extracted_tasks = EmailService.fetch_and_parse_emails(user_id)
+    except Exception as e:
+        return error_response(message=str(e), status_code=400)
 
     created = []
     for task_data in extracted_tasks:

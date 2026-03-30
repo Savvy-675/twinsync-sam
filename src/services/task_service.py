@@ -25,20 +25,33 @@ class TaskService:
             return False
 
     @staticmethod
-    def complete_task(task_id, user_id):
-        task = TaskRepository.update_status(task_id, 'completed', user_id=user_id)
+    def update_task_status(task_id, new_status, user_id):
+        task = TaskRepository.update_status(task_id, new_status, user_id=user_id)
         if task:
-            # Re-calculating global user productivity score
-            user = UserRepository.get_by_id(user_id)
+            # Re-calculating global user productivity metrics synchronously
+            # so the frontend instantly reflects the updated score/delay rate
             all_tasks = TaskRepository.get_all_by_user(user_id)
-            completed = [t for t in all_tasks if t.status == 'completed']
+            
+            total_tasks = len(all_tasks)
+            completed_tasks = len([t for t in all_tasks if t.status == 'completed'])
+            delayed_tasks = len([t for t in all_tasks if t.status == 'delayed'])
             
             # Simple productivity heuristic
-            new_score = (len(completed) / len(all_tasks)) * 100 if all_tasks else 0
-            UserRepository.update_stats(user_id, {'productivity_score': new_score})
+            new_score = (completed_tasks / total_tasks) * 100 if total_tasks else 0
+            
+            # Delay rate calculation
+            total_past = completed_tasks + delayed_tasks
+            delay_rt = (delayed_tasks / total_past) * 100 if total_past > 0 else 0
+            
+            UserRepository.update_stats(user_id, {
+                'productivity_score': new_score,
+                'delay_rate': round(delay_rt, 2)
+            })
             
             # Real-time broadcast
-            SocketService.emit_task_update(user_id, f"Sync Successful: '{task.title}' recorded.", task.id)
+            msg = f"Task '{task.title}' marked as {new_status}."
+            SocketService.emit_task_update(user_id, msg, task.id)
+            # Emit analytics strictly so dashboard gauges refresh instantly
             SocketService.emit_analytics_refresh(user_id)
             
             return task
