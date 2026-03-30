@@ -36,19 +36,29 @@ PRIORITY_DOMAINS = [
 class EmailService:
     @staticmethod
     def fetch_emails(user, max_emails=20):
-        """Connect to user's personalized mail server."""
-        if not user or not user.email_user or not user.email_pass_encrypted:
-            logger.warning(f"No email credentials for user {user.id if user else 'Unknown'}")
+        """Connect to user's personalized mail server or fallback to default."""
+        email_user = getattr(user, 'email_user', None) or Config.SMTP_USER
+        email_pass = None
+        
+        # Check if user has encrypted pass, otherwise fallback
+        if getattr(user, 'email_pass_encrypted', None):
+            try:
+                import base64
+                email_pass = base64.b64decode(user.email_pass_encrypted).decode()
+            except Exception as e:
+                logger.error(f"Decryption failed: {e}")
+                email_pass = getattr(user, 'email_pass_encrypted') # raw fallback
+        else:
+            email_pass = Config.SMTP_PASS
+
+        if not email_user or not email_pass:
+            logger.warning(f"No email credentials for user {user.id if user else 'Unknown'} and no defaults found.")
             return []
 
         try:
-            # Basic Decryption (Base64 for this 'basic' requirement)
-            import base64
-            password = base64.b64decode(user.email_pass_encrypted).decode()
-            
-            host = user.imap_server or 'imap.gmail.com'
+            host = getattr(user, 'imap_server', None) or 'imap.gmail.com'
             mail = imaplib.IMAP4_SSL(host)
-            mail.login(user.email_user, password)
+            mail.login(email_user, email_pass)
             mail.select('inbox')
 
             # Search for recent emails (last 30 days)
