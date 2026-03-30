@@ -153,6 +153,7 @@ def analytics():
 
     data = {
         'user': {
+            'id': user.id,
             'name': user.name,
             'email': user.email,
             'productivity_score': user.productivity_score,

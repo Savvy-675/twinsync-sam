@@ -40,10 +40,12 @@ class TaskRepository:
         deadline = data.get('deadline')
         if isinstance(deadline, str) and deadline:
             try:
+                # JS 'Z' format is not supported in all python versions, swap with explicit +00:00
+                deadline = deadline.replace('Z', '+00:00')
                 deadline = datetime.datetime.fromisoformat(deadline)
             except ValueError:
-                import dateparser
-                deadline = dateparser.parse(deadline) or (datetime.datetime.utcnow() + datetime.timedelta(days=7))
+                # If AI returns something non-ISO, fallback safely
+                deadline = datetime.datetime.utcnow() + datetime.timedelta(days=7)
         elif not deadline:
             deadline = datetime.datetime.utcnow() + datetime.timedelta(days=7)
 

@@ -843,13 +843,7 @@ document.getElementById('btn-email-sync').addEventListener('click', async () => 
     }
 });
 
-// -------- SOCKET & BOOTSTRAP --------
-
-function initializeRealtime() {
-    if (socket) return;
-    socket = io(SOCKET_BASE);
-    socket.on('task_updated', () => fetchAppData());
-}
+// -------- TOAST UTILITIES --------
 
 function showToast(m, type = 'info') {
     const c = document.getElementById('toast-container');
@@ -1180,7 +1174,7 @@ function initializeRealtime() {
     });
 
     socket.on('task_updated', (data) => {
-        toast('Cloud Sync', data.message, 'success');
+        showToast(data.message, 'success');
         fetchAppData();
     });
 
