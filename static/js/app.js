@@ -30,6 +30,8 @@ let charts = {};
 let calendarDate = new Date();
 let currentCalView = 'month'; // 'month' or 'week'
 let showCompletedTasks = false;
+let showTasksCompleted = false; // Separate flag for Task Queue view
+
 
 // -------- CORE AUTHENTICATION --------
 
@@ -329,6 +331,13 @@ function getPriorityColor(priority) {
 function renderTasksList(filter = 'all') {
     const list = document.getElementById('tasks-list');
     let tasks = window.appData.tasks || [];
+    
+    // 1. Filter by status: Only show 'pending' unless showTasksCompleted is true
+    if (!showTasksCompleted) {
+        tasks = tasks.filter(t => t.status === 'pending');
+    }
+    
+    // 2. Filter by priority
     if (filter !== 'all') tasks = tasks.filter(t => t.priority === filter);
 
     list.innerHTML = tasks.map(t => {
@@ -388,6 +397,19 @@ async function deleteTask(taskId) {
 document.getElementById('task-filter').addEventListener('change', (e) => {
     renderTasksList(e.target.value);
 });
+
+const taskToggleBtn = document.getElementById('task-toggle-completed');
+if (taskToggleBtn) {
+    taskToggleBtn.addEventListener('click', () => {
+        showTasksCompleted = !showTasksCompleted;
+        taskToggleBtn.classList.toggle('active-view');
+        // Update text/icon to show status
+        taskToggleBtn.innerHTML = showTasksCompleted 
+            ? '<i class="fa-solid fa-list-check"></i> Active' 
+            : '<i class="fa-solid fa-clock-rotate-left"></i> History';
+        renderTasksList(document.getElementById('task-filter').value);
+    });
+}
 
 function renderProfile() {
     const u = window.appData.analytics.user || {};
