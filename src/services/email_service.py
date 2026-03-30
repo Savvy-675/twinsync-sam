@@ -177,7 +177,10 @@ Rules:
     @staticmethod
     def fetch_and_parse_emails(user_id):
         """Main entry: fetch, filter, extract, and return tasks from user's mail."""
-        from src.models.all_models import User
+        import hashlib
+        from src.models.all_models import User, Task
+        from src.config.db import db
+        
         user = User.query.get(user_id)
         if not user: return []
         
@@ -189,10 +192,19 @@ Rules:
         logger.info(f"Found {len(task_emails)} task-related emails.")
 
         for e in task_emails:
+            # --- Deduplication: skip emails already saved as tasks ---
+            raw_hash = f"{user_id}:{e['sender']}:{e['subject']}"
+            email_hash = hashlib.sha1(raw_hash.encode()).hexdigest()
+            exists = Task.query.filter_by(user_id=user_id, email_hash=email_hash).first()
+            if exists:
+                logger.debug(f"Skipping duplicate email (hash={email_hash[:8]}): {e['subject']}")
+                continue
+
             extracted = EmailService.extract_task_from_email(e)
             if extracted and extracted.get('title'):
                 extracted['user_id'] = user_id
                 extracted['source'] = 'email'
+                extracted['email_hash'] = email_hash
                 tasks_created.append(extracted)
 
         return tasks_created

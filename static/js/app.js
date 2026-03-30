@@ -231,6 +231,8 @@ async function fetchAppData() {
     if (document.getElementById('view-calendar').classList.contains('active')) renderCalendar();
     loader.style.display = 'none';
     updateAIStatus(analyticsRes);
+    // Ensure socket room is joined now that user data is available
+    if (socket && socket._joinUserRoom) socket._joinUserRoom();
 }
 
 function updateAIStatus(res) {
@@ -259,32 +261,13 @@ function renderDashboard() {
         document.getElementById('score-circle').style.setProperty('--score', score);
     }
     const delayEl = document.getElementById('delay-text');
-    if (delayEl) delayEl.textContent = (u.delay_rate || 0) + '%';
+    if (delayEl) delayEl.textContent = (u.delay_rate || 0).toFixed(1) + '%';
+    const mlAccEl = document.getElementById('ml-acc-text');
+    if (mlAccEl) mlAccEl.textContent = Math.round(u.ml_accuracy || 0) + '%';
     renderTopTasks();
     renderProductivityInsights();
 }
 
-function renderProfile() {
-    const u = window.appData.analytics.user || {};
-    const nameEl = document.getElementById('profile-name');
-    if (nameEl) nameEl.textContent = u.name || 'Explorer';
-    if (u.name) userAvatar.textContent = u.name.charAt(0).toUpperCase();
-    
-    const emailEl = document.getElementById('profile-email');
-    if (emailEl) emailEl.textContent = u.email;
-    
-    const pscoreEl = document.getElementById('pstat-score');
-    if (pscoreEl) pscoreEl.textContent = Math.round(u.productivity_score || 0);
-    
-    const pdelayEl = document.getElementById('pstat-delay');
-    if (pdelayEl) pdelayEl.textContent = (u.delay_rate || 0) + '%';
-    
-    // Pre-fill Email Settings
-    const imapEl = document.getElementById('prof-imap');
-    if (imapEl) imapEl.value = u.imap_server || 'imap.gmail.com';
-    const emailUserEl = document.getElementById('prof-email-user');
-    if (emailUserEl) emailUserEl.value = u.email_user || '';
-}
 
 async function saveEmailSettings() {
     const imap = document.getElementById('prof-imap').value;
@@ -1162,14 +1145,27 @@ function initializeRealtime() {
     if (!token) return;
 
     socket = io(SOCKET_BASE, {
-        auth: { token: token }
+        auth: { token: token },
+        reconnection: true,
+        reconnectionDelay: 1500,
     });
 
-    socket.on('connect', () => {
-        console.log('Connected to TwinSync Cloud Socket');
+    function joinUserRoom() {
         const user = window.appData?.analytics?.user;
         if (user && user.id) {
             socket.emit('join', { user_id: user.id });
+            console.log(`Joined room: user_${user.id}`);
+            return true;
+        }
+        return false;
+    }
+
+    socket.on('connect', () => {
+        console.log('Connected to TwinSync Cloud Socket');
+        // If appData is already loaded (reconnect scenario), join immediately
+        if (!joinUserRoom()) {
+            // Data not ready yet; will be joined after fetchAppData resolves
+            console.log('Room join deferred — waiting for appData to load.');
         }
     });
 
@@ -1185,6 +1181,9 @@ function initializeRealtime() {
     socket.on('disconnect', () => {
         console.log('Disconnected from Cloud Socket');
     });
+
+    // Expose joiner so fetchAppData can call it after data resolves
+    socket._joinUserRoom = joinUserRoom;
 }
 
 // -------- ON PAGE LOAD --------
@@ -1194,8 +1193,11 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (token) {
         authOverlay.style.display = 'none';
         appContainer.style.display = 'block';
-        await fetchAppData();
+        // Init socket first so it's ready to receive events
         initializeRealtime();
+        await fetchAppData();
+        // Now that appData is loaded, ensure we've joined the user room
+        if (socket && socket._joinUserRoom) socket._joinUserRoom();
     } else {
         authOverlay.style.display = 'flex';
         appContainer.style.display = 'none';

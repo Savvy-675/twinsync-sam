@@ -58,7 +58,8 @@ class TaskRepository:
             category=data.get('category', 'general'),
             priority=priority,
             estimated_duration=data.get('estimated_duration', 30),
-            deadline=deadline
+            deadline=deadline,
+            email_hash=data.get('email_hash')  # None for manual/chat tasks
         )
         db.session.add(task)
         db.session.commit()

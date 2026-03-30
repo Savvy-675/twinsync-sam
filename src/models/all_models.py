@@ -72,6 +72,9 @@ class Task(db.Model):
     risk_score = db.Column(db.String(100), default='Low')
     risk_reason = db.Column(db.Text, default='')
     smart_priority_score = db.Column(db.Float, default=0.0)
+    
+    # Email deduplication: SHA1 hash of (user_id + email subject + sender)
+    email_hash = db.Column(db.String(64), index=True, nullable=True)
 
 class ActivityLog(db.Model):
     __tablename__ = 'activity_logs'

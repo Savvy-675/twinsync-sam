@@ -65,6 +65,21 @@ def chat():
             task_created = True
             task_title = new_task.title
             logger.info(f"Task created via chat: {task_title}")
+            # Recalculate productivity score and emit realtime sync
+            from src.services.task_service import TaskService
+            from src.services.socket_service import SocketService
+            from src.repositories.task_repo import TaskRepository as TR
+            all_tasks = TR.get_all_by_user(user_id)
+            total = len(all_tasks)
+            completed_count = len([t for t in all_tasks if t.status == 'completed'])
+            delayed_count = len([t for t in all_tasks if t.status == 'delayed'])
+            new_score = (completed_count / total) * 100 if total else 0
+            total_past = completed_count + delayed_count
+            delay_rt = (delayed_count / total_past) * 100 if total_past > 0 else 0
+            from src.repositories.user_repo import UserRepository as UR
+            UR.update_stats(user_id, {'productivity_score': new_score, 'delay_rate': round(delay_rt, 2)})
+            SocketService.emit_task_update(user_id, f"New task '{task_title}' created via chat.", new_task.id)
+            SocketService.emit_analytics_refresh(user_id)
             # Modify prompt so LLaMA confirms the task creation
             prompt = f"Confirm you just created the task '{task_title}' for the user. Be brief and encouraging."
         except Exception as e:
