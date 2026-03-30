@@ -35,7 +35,7 @@ def create_app():
     
     # 3. Initialize WebSocket Support
     # Only using a message queue if Redis is explicitly available (Non-Native)
-    socketio.init_app(app, message_queue=app.config.get('SOCKETIO_REDIS_URL'), cors_allowed_origins=["*", "capacitor://localhost"])
+    socketio.init_app(app, message_queue=app.config.get('SOCKETIO_REDIS_URL'), cors_allowed_origins="*")
     
     # 4. Initialize Celery Task Broker
     init_celery_task_broker(app)
