@@ -1126,3 +1126,148 @@ input[type="checkbox"] {
     flex-wrap: wrap;
     margin-top: 4px;
 }
+
+/* ====================== CALENDAR GRID (GOOGLE STYLE) ====================== */
+.calendar-grid {
+    background: var(--bg-card);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.cal-week-header {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    background: rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid var(--border);
+}
+
+.cal-week-header span {
+    padding: 10px 0;
+    text-align: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+.cal-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+}
+
+.cal-day {
+    min-height: 80px;
+    padding: 8px;
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.cal-day:nth-child(7n) { border-right: none; }
+.cal-day:hover { background: rgba(139, 92, 246, 0.05); }
+
+.cal-today { background: rgba(139, 92, 246, 0.1) !important; font-weight: bold; }
+.cal-today .cal-date { color: var(--accent-primary); }
+
+.cal-chip {
+    margin-top: 4px;
+    font-size: 0.6rem;
+    padding: 2px 5px;
+    border-radius: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Week View Grid */
+.cal-week-grid {
+    display: grid;
+    grid-template-columns: 50px repeat(7, 1fr);
+    grid-auto-rows: minmax(50px, auto);
+}
+
+.cal-week-header-cell {
+    padding: 10px 5px;
+    text-align: center;
+    font-size: 0.65rem;
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.cal-week-time-col {
+    grid-column: 1;
+    border-right: 1px solid var(--border);
+    background: rgba(2, 6, 23, 0.5);
+}
+
+.cal-time-slot {
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+}
+
+.cal-week-cell {
+    height: 50px;
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    cursor: pointer;
+}
+
+.cal-block-task {
+    position: absolute;
+    inset: 2px;
+    border-radius: 4px;
+    font-size: 0.6rem;
+    padding: 4px;
+    color: white;
+    font-weight: 600;
+    overflow: hidden;
+    z-index: 5;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Color Coding */
+.urgent-task { border-left-color: var(--danger) !important; background: rgba(239, 68, 68, 0.05); }
+.medium-task { border-left-color: var(--warning) !important; background: rgba(245, 158, 11, 0.05); }
+.normal-task { border-left-color: var(--success) !important; background: rgba(16, 185, 129, 0.05); }
+
+/* Dashboard Timeline */
+.dashboard-schedule {
+    margin-top: 15px;
+}
+
+.schedule-item {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 12px;
+}
+
+.schedule-time {
+    width: 70px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    color: var(--accent-secondary);
+    padding-top: 4px;
+}
+
+.schedule-content {
+    flex: 1;
+    padding: 10px 14px;
+    background: var(--bg-card);
+    border-radius: 10px;
+    border-left: 3px solid var(--accent-primary);
+}
+
+.schedule-content h4 { font-size: 0.9rem; margin-bottom: 4px; }
+.schedule-content p { font-size: 0.75rem; color: var(--text-muted); }

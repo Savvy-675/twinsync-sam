@@ -136,6 +136,21 @@ def analytics():
         ).count()
         weekly.append({'date': day.strftime('%Y-%m-%d'), 'label': day.strftime('%a'), 'count': count})
 
+    # Build daily schedule preview (Planner Service)
+    from src.services.planner_service import PlannerService
+    daily_schedule = PlannerService.generate_day_plan(user_id)
+
+    # Top 3 Important Tasks Today (Sorted by Smart Priority Score)
+    pending_tasks = TaskRepository.get_pending_by_user(user_id)
+    # Ensure they are refreshed
+    from src.ml.model_service import MLService
+    MLService.predict_pending(user_id)
+    top_3 = sorted(pending_tasks, key=lambda x: x.smart_priority_score, reverse=True)[:3]
+
+    # Check AI Health (Groq/Gemini)
+    ai_configured = (Config.GROQ_API_KEY and len(Config.GROQ_API_KEY) > 5) or \
+                    (Config.GEMINI_API_KEY and len(Config.GEMINI_API_KEY) > 5)
+
     data = {
         'user': {
             'name': user.name,
@@ -157,10 +172,16 @@ def analytics():
         },
         'categories': [{'category': c[0], 'count': c[1]} for c in categories],
         'weekly': weekly,
+        'daily_schedule': daily_schedule,
+        'top_tasks': [{'id': t.id, 'title': t.title, 'priority': t.priority, 'score': t.smart_priority_score, 'deadline': t.deadline.strftime('%Y-%m-%d') if t.deadline else None} for t in top_3],
         'heatmap': {'Morning': 0, 'Afternoon': 0, 'Evening': 0},
-        'recommendations': [{'recommendation': i.recommendation, 'reason': i.reason} for i in insights]
+        'recommendations': [{'recommendation': i.recommendation, 'reason': i.reason} for i in insights],
+        'ai_health': ai_configured
     }
 
+    if not ai_configured:
+        return success_response(data=data, message="Cloud Sync Active (⚠️ AI Keys Missing)")
+    
     return success_response(data=data, message="Real-time analytics synchronized.")
 
 @jwt_required()

@@ -1,7 +1,12 @@
 const isAndroid = window.location.origin.includes('capacitor://') || window.location.origin.includes('http://localhost');
-// If on localhost (Web), use /api. If on localhost (Android), we MUST use the full production URL!
-const API_BASE = (window.location.origin.includes('localhost') && !window.Capacitor?.isNativePlatform()) ? '/api' : 'https://twinsync-sam.onrender.com/api';
-const SOCKET_BASE = (window.location.origin.includes('localhost') && !window.Capacitor?.isNativePlatform()) ? window.location.origin : 'https://twinsync-sam.onrender.com';
+// 🌐 Hosted Fix: Use relative /api if in browser, fallback for Android/Local!
+const API_BASE = (window.location.origin.includes('localhost') && !window.Capacitor?.isNativePlatform()) 
+    ? '/api' 
+    : (window.location.origin.startsWith('http') ? '/api' : 'https://twinsync-sam.onrender.com/api');
+
+const SOCKET_BASE = (window.location.origin.includes('localhost') && !window.Capacitor?.isNativePlatform()) 
+    ? window.location.origin 
+    : (window.location.origin.startsWith('http') ? window.location.origin : 'https://twinsync-sam.onrender.com');
 
 // DOM Elements
 const views = document.querySelectorAll('.view-section');
@@ -225,6 +230,23 @@ async function fetchAppData() {
     renderProfile();
     if (document.getElementById('view-calendar').classList.contains('active')) renderCalendar();
     loader.style.display = 'none';
+    updateAIStatus(analyticsRes);
+}
+
+function updateAIStatus(res) {
+    const statusEl = document.querySelector('.ai-status');
+    if (!statusEl) return;
+    
+    // Check if both the request succeeded AND the AI keys are configured
+    const aiActive = res.success && res.data && res.data.ai_health;
+    
+    if (aiActive) {
+        statusEl.innerHTML = '<span class="pulse-dot"></span> AI Pipeline: <span style="color:var(--success)">Online</span>';
+        statusEl.style.opacity = '1';
+    } else {
+        statusEl.innerHTML = '<span class="pulse-dot" style="background:var(--danger)"></span> AI Pipeline: <span style="color:var(--danger)">Offline / Missing Keys</span>';
+        statusEl.title = "The server is connected, but GROQ_API_KEY or GEMINI_API_KEY is missing in your hosting environment.";
+    }
 }
 
 function renderDashboard() {

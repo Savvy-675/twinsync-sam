@@ -99,7 +99,7 @@
             <section id="view-dashboard" class="view-section active">
                 <div class="card" style="text-align:center;position:relative;">
                     <h2 class="text-h2">Your Dashboard</h2>
-                    <p class="text-muted" style="margin-bottom:15px;">Today's Productivity Overview</p>
+                    <p class="text-muted" style="margin-bottom:15px;">Smart Productivity Overview</p>
                     <div class="score-container">
                         <div class="score-circle" id="score-circle" style="--score:0;">
                             <div class="score-inner">
@@ -108,44 +108,41 @@
                             </div>
                         </div>
                     </div>
-                    <div style="display:flex;justify-content:center;margin-top:20px;text-align:center;">
-                        <div><p class="text-muted">Delay Rate</p><h3 id="delay-text" style="color:var(--danger)">0%</h3></div>
+                </div>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+                    <div class="card" style="margin-bottom:0;text-align:center;padding:12px;">
+                        <p class="text-muted" style="font-size:0.7rem;">Delay Rate</p>
+                        <h3 id="delay-text" style="color:var(--danger);font-size:1.2rem;">0%</h3>
+                    </div>
+                    <div class="card" style="margin-bottom:0;text-align:center;padding:12px;">
+                        <p class="text-muted" style="font-size:0.7rem;">ML Accuracy</p>
+                        <h3 id="ml-acc-text" style="color:var(--accent-secondary);font-size:1.2rem;">0%</h3>
                     </div>
                 </div>
 
-                <!-- 📵 FOCUS GOAL CARD -->
-                <div class="card" id="focus-goal-card" style="padding:16px; border-color:rgba(139,92,246,0.2);">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-                        <span style="font-size:0.85rem;font-weight:600;"><i class="fa-solid fa-mobile-screen-button" style="color:var(--accent-secondary);margin-right:6px;"></i> Daily Screen Health</span>
-                        <span id="focus-percent-text" style="font-size:0.8rem;font-weight:bold;color:var(--accent-primary);">0%</span>
-                    </div>
-                    <div style="background:var(--bg-primary);border-radius:10px;height:12px;overflow:hidden;margin-bottom:10px;border:1px solid var(--border);">
-                        <div id="focus-goal-bar" style="width:0%;height:100%;background:linear-gradient(90deg,var(--accent-primary),var(--accent-secondary));transition:width 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);"></div>
-                    </div>
-                    <div style="display:flex;justify-content:space-between;font-size:0.75rem;">
-                        <span id="focus-current-text" class="text-muted">0m spent</span>
-                        <span id="focus-goal-text" class="text-muted">Goal: 2h 0m</span>
-                    </div>
-                </div>
-                <h3 class="text-h2" style="margin:20px 0 10px;">🔥 Top 3 Important Tasks</h3>
+                <h3 class="text-h2" style="margin:20px 0 10px;display:flex;align-items:center;gap:8px;">
+                    <i class="fa-solid fa-fire" style="color:var(--danger);"></i> Top 3 Important Tasks
+                </h3>
                 <div id="top-tasks-container"></div>
-                <h3 class="text-h2" style="margin:20px 0 10px;">📊 Recent Activity</h3>
-                <div id="insights-container"></div>
+
+                <h3 class="text-h2" style="margin:20px 0 10px;display:flex;align-items:center;gap:8px;">
+                    <i class="fa-solid fa-calendar-day" style="color:var(--accent-primary);"></i> Daily Schedule Preview
+                </h3>
+                <div id="dashboard-schedule" class="dashboard-schedule"></div>
             </section>
 
             <!-- TASKS VIEW -->
             <section id="view-tasks" class="view-section">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
                     <h2 class="text-h2">Task Queue</h2>
-                    <div style="display:flex;gap:8px;">
-                        <select id="task-filter" style="padding:6px 10px;border-radius:8px;background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);font-size:0.8rem;">
-                            <option value="all">All</option>
-                            <option value="critical">🔴 Critical</option>
-                            <option value="high">🟠 High</option>
-                            <option value="medium">🟡 Medium</option>
-                            <option value="low">🟢 Low</option>
-                        </select>
-                    </div>
+                    <select id="task-filter" style="padding:6px 10px;border-radius:8px;background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);font-size:0.8rem;width:auto;">
+                        <option value="all">All</option>
+                        <option value="critical">🔴 Critical</option>
+                        <option value="high">🟠 High</option>
+                        <option value="medium">🟡 Medium</option>
+                        <option value="low">🟢 Low</option>
+                    </select>
                 </div>
                 <div id="tasks-list"></div>
             </section>
@@ -154,13 +151,17 @@
             <section id="view-calendar" class="view-section">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
                     <h2 class="text-h2">Calendar</h2>
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                        <button id="cal-view-month" class="btn" style="padding:5px 10px;font-size:0.8rem;">Month</button>
-                        <button id="cal-view-week" class="btn" style="padding:5px 10px;font-size:0.8rem;background:var(--bg-card);">Week</button>
-                        <button id="cal-toggle-completed" class="btn" style="padding:5px 10px;font-size:0.8rem;background:var(--bg-card);color:var(--text-muted);">✅ Show Done</button>
-                        <button id="cal-prev" class="btn" style="padding:5px 12px;">‹</button>
-                        <span id="cal-month-label" style="padding:5px 10px;font-weight:bold;"></span>
-                        <button id="cal-next" class="btn" style="padding:5px 12px;">›</button>
+                    <div style="display:flex;gap:6px;">
+                        <button id="cal-view-day" class="btn" style="padding:4px 8px;font-size:0.7rem;background:var(--bg-card);">Day</button>
+                        <button id="cal-view-week" class="btn" style="padding:4px 8px;font-size:0.7rem;background:var(--bg-card);">Week</button>
+                        <button id="cal-view-month" class="btn active-view" style="padding:4px 8px;font-size:0.7rem;">Month</button>
+                    </div>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                    <span id="cal-month-label" style="font-weight:bold;font-size:1rem;"></span>
+                    <div>
+                        <button id="cal-prev" class="btn" style="padding:4px 10px;background:var(--bg-card);">‹</button>
+                        <button id="cal-next" class="btn" style="padding:4px 10px;background:var(--bg-card);">›</button>
                     </div>
                 </div>
                 <div class="calendar-grid" id="calendar-grid"></div>
@@ -172,8 +173,8 @@
                 <h2 class="text-h2" style="margin-bottom:16px;">Smart Planner</h2>
                 <div class="card" style="text-align:center;">
                     <i class="fa-solid fa-wand-magic-sparkles fa-3x" style="color:var(--accent-secondary);margin-bottom:15px;"></i>
-                    <p class="text-muted" style="margin-bottom:20px;">Let AI auto-schedule your active tasks based on your peak focus time.</p>
-                    <button class="btn" id="btn-generate-day">Generate My Day</button>
+                    <p class="text-muted" style="margin-bottom:20px;">AI-driven behavior-aware scheduling based on your focus peaks.</p>
+                    <button class="btn" id="btn-generate-day">Generate Optimal Day</button>
                 </div>
                 <div id="planner-timeline" style="margin-top:20px;"></div>
             </section>

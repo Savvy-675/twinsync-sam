@@ -8,20 +8,29 @@ from src.config.config import Config
 logger = logging.getLogger('EmailService')
 
 # Keywords that trigger task extraction
+# Keywords that trigger task extraction
 TASK_KEYWORDS = [
     'meeting', 'assignment', 'deadline', 'due', 'task', 'submit',
     'exam', 'project', 'review', 'presentation', 'interview', 'call',
-    'urgent', 'reminder', 'action required', 'please complete'
+    'urgent', 'reminder', 'action required', 'please complete', 'invitation'
 ]
 
+# Strictly ignore these sources/types
 IGNORE_KEYWORDS = [
     'snapchat', 'instagram', 'facebook', 'tiktok', 'twitter', 'x.com',
     'promotion', 'sale', 'offer', 'discount', 'newsletter', 'unsubscribe',
-    'marketing', 'spam', 'deal'
+    'marketing', 'spam', 'deal', 'verification code', 'otp', 'security alert',
+    'stories', 'friend request', 'followed you'
 ]
 
+# Trusted sources only
 PRIORITY_DOMAINS = [
-    '.edu', 'classroom.google.com', 'linkedin.com', 'calendar.google.com'
+    '.edu',                             # Academic
+    'classroom.google.com',             # Google Classroom
+    'linkedin.com',                     # Professional (filtered later in prompt)
+    'calendar.google.com',              # Calendar invites
+    'teams.microsoft.com',              # Work/Official
+    'slack.com'                         # Work/Official
 ]
 
 class EmailService:
@@ -42,8 +51,8 @@ class EmailService:
             mail.login(user.email_user, password)
             mail.select('inbox')
 
-            # Search for recent emails (last 3 days)
-            since_date = (datetime.now() - timedelta(days=3)).strftime("%d-%b-%Y")
+            # Search for recent emails (last 30 days)
+            since_date = (datetime.now() - timedelta(days=30)).strftime("%d-%b-%Y")
             _, ids = mail.search(None, f'(SINCE {since_date})')
             
             email_ids = ids[0].split()[-max_emails:]  # Latest N emails
@@ -124,12 +133,18 @@ class EmailService:
 
 Email Subject: {email_data['subject']}
 Email Body: {email_data['body'][:300]}
+Sender: {email_data['sender']}
 
 Rules:
 - If no deadline is mentioned, return null for deadline.
-- ONLY create task if deadline exists, event is scheduled, or action is required. If not, return {{"title": ""}}.
-- URGENCY DETECTION: If the deadline is within 1 to 5 days, strictly mark priority as "high" or "critical".
-- Return ONLY the JSON, nothing else."""
+- ONLY create task if deadline exists, event is scheduled, or action is required. If not, return {"title": ""}.
+- SOURCE FILTERING:
+  - LinkedIn: ONLY extract if related to jobs, interviews, or meetings. Avoid "new follower" or "people you may know".
+  - Classroom: Extract assignments and deadlines.
+  - Work/Official: Extract action items or meetings.
+- URGENCY DETECTION: If the deadline is within 1 to 5 days, strictly mark priority as "high".
+- Return ONLY the JSON, nothing else. "title" should be empty if the email is not an actionable task.
+"""
 
             response = client.chat.completions.create(
                 model="llama-3.3-70b-versatile",

@@ -7,17 +7,23 @@ logger = logging.getLogger('AIService')
 
 class AIService:
     @staticmethod
-    def generate_simulated_response(context, error_msg="No API response"):
+    def generate_simulated_response(context, error_msg="AI Configuration Required"):
         acc = context.get('acc', 0)
         samps = context.get('samps', 0)
-        return f"""**Your Digital Twin is responding in local mode!** 🧠✨
-        
-**Debug Info:** {error_msg}
+        return f"""### ⚠️ AI Configuration Required
 
-Based on your current ML Synchrony:
- - **Accuracy:** {acc}%
- - **History:** {samps} Samples
- - **Status:** Local Processing Active"""
+Your Digital Twin is currently in **Local Safe Mode** because the AI keys are missing from your hosting environment.
+
+**How to Fix:**
+1. Go to your hosting provider settings (e.g., Render, Heroku).
+2. Find the **Environment Variables** or **Secrets** section.
+3. Add `GROQ_API_KEY` (highly recommended) or `GEMINI_API_KEY`.
+4. Restart your service.
+
+**System Data:**
+- Accuracy: {acc}%
+- Samples: {samps}
+"""
 
     @staticmethod
     def detect_task_intent(prompt):
@@ -25,7 +31,7 @@ Based on your current ML Synchrony:
         Use LLaMA 3 to detect if the user wants to create a task.
         Returns a task dict if intent detected, else None.
         """
-        if not Config.GROQ_API_KEY:
+        if not Config.GROQ_API_KEY or len(Config.GROQ_API_KEY) < 10:
             return None
         try:
             client = Groq(api_key=Config.GROQ_API_KEY)
@@ -74,7 +80,7 @@ Strict Rules:
 5. Be concise, supportive and data-driven. Use Markdown for formatting.
 6. If the user is creating a task, confirm it naturally (e.g. \"Got it! I've added X to your task list.\")"""
 
-        last_error = "Keys missing in Cloud Env"
+        last_error = "Environment keys (GROQ_API_KEY / GEMINI_API_KEY) are missing or too short."
         
         # 🥇 PRIMARY: Groq (LLaMA 3)
         if Config.GROQ_API_KEY and len(Config.GROQ_API_KEY) > 5:

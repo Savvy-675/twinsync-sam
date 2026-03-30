@@ -5,8 +5,8 @@ load_dotenv()
 
 class Config:
     # 🕵️ Extreme Stabilization: Hard-coded master keys to prevent .env loading mismatches
-    SECRET_KEY = "twin-sync-master-static-99b8f2d3e4f5"
-    JWT_SECRET_KEY = "jwt-static-hardened-twin-secret-77x3y2z1"
+    SECRET_KEY = os.getenv('SECRET_KEY', "twin-sync-master-static-99b8f2d3e4f5")
+    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', "jwt-static-hardened-twin-secret-77x3y2z1")
     
     JWT_ACCESS_TOKEN_EXPIRES = 86400  # 24 Hours for local stability
     JWT_TOKEN_LOCATION = ['headers']
@@ -17,12 +17,12 @@ class Config:
     # Database: SQLite for Native
     DB_URL = os.getenv('DATABASE_URL')
     NATIVE_MODE = not DB_URL or 'postgresql' not in DB_URL
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///digital-twins.db'
+    SQLALCHEMY_DATABASE_URI = DB_URL if DB_URL else 'sqlite:///digital-twins.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # 🔄 Real-time Sync Support
     REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
-    SOCKETIO_REDIS_URL = None # Forced None for Native Mode reliability
+    SOCKETIO_REDIS_URL = REDIS_URL if not NATIVE_MODE else None # Forced None for Native Mode reliability
     
     # ⚙️ Celery & Background Tasks
     broker_url = os.getenv('CELERY_BROKER_URL', REDIS_URL) if not NATIVE_MODE else None

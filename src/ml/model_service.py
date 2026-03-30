@@ -61,21 +61,36 @@ class MLService:
 
     @classmethod
     def calculate_priority_score(cls, task, delay_prob):
-        base_importance = cls.PRIO_MAP.get(task.priority.lower() if task.priority else 'medium', 1) * 20
+        """
+        Calculates a priority score (0-100) based on:
+        - Task Importance (from base priority)
+        - ML Delay Risk
+        - Deadline Urgency
+        """
+        # 1. Task Importance (0-40)
+        importance_map = {'critical': 40, 'high': 30, 'medium': 20, 'low': 10}
+        task_importance = importance_map.get(task.priority.lower() if task.priority else 'medium', 20)
+
+        # 2. ML Delay Risk (0-30)
         delay_risk_score = delay_prob * 30
-        
+
+        # 3. Deadline Urgency (0-30)
         deadline_urgency = 0
-        from datetime import datetime
         if task.deadline:
-            days_left = (task.deadline - datetime.now()).days
-            if days_left <= 0:
-                deadline_urgency = 30
-            elif days_left <= 3:
-                deadline_urgency = 20
-            elif days_left <= 7:
-                deadline_urgency = 10
+            now = datetime.now()
+            hours_left = (task.deadline - now).total_seconds() / 3600
+            
+            if hours_left <= 0:
+                deadline_urgency = 30  # Overdue
+            elif hours_left <= 24:
+                deadline_urgency = 25  # Within a day
+            elif hours_left <= 72:
+                deadline_urgency = 15  # Within 3 days
+            elif hours_left <= 168:
+                deadline_urgency = 5   # Within a week
                 
-        return min(base_importance + delay_risk_score + deadline_urgency, 100)
+        total_score = task_importance + delay_risk_score + deadline_urgency
+        return min(total_score, 100)
 
     @classmethod
     def predict_pending(cls, user_id):
