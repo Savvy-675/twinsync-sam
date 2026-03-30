@@ -1146,8 +1146,13 @@ function initializeRealtime() {
 
     socket = io(SOCKET_BASE, {
         auth: { token: token },
+        // Start with polling (always works through Render's proxy),
+        // then attempt WebSocket upgrade. Prevents the WS-closed-before-connected error.
+        transports: ['polling', 'websocket'],
         reconnection: true,
-        reconnectionDelay: 1500,
+        reconnectionDelay: 2000,
+        reconnectionAttempts: 5,
+        timeout: 10000,
     });
 
     function joinUserRoom() {

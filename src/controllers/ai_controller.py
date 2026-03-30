@@ -6,6 +6,7 @@ from src.repositories.user_repo import UserRepository
 from src.repositories.task_repo import TaskRepository
 from src.models.all_models import Insight, Task
 from src.config.db import db
+from src.config.config import Config
 import logging
 
 logger = logging.getLogger('AIController')

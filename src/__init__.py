@@ -68,6 +68,31 @@ def create_app():
         # but for this demo, we'll ensure the table structure is active.
         db.create_all()
         
+        # Safe runtime migration: add email_hash column if it doesn't exist yet.
+        # Works on SQLite and PostgreSQL without Alembic.
+        try:
+            from sqlalchemy import text
+            with db.engine.connect() as conn:
+                # PostgreSQL uses information_schema; SQLite uses PRAGMA
+                is_postgres = 'postgresql' in str(db.engine.url)
+                if is_postgres:
+                    result = conn.execute(text(
+                        "SELECT column_name FROM information_schema.columns "
+                        "WHERE table_name='tasks' AND column_name='email_hash'"
+                    ))
+                    exists = result.fetchone() is not None
+                else:
+                    result = conn.execute(text("PRAGMA table_info(tasks)"))
+                    exists = any(row[1] == 'email_hash' for row in result.fetchall())
+                
+                if not exists:
+                    conn.execute(text("ALTER TABLE tasks ADD COLUMN email_hash VARCHAR(64)"))
+                    conn.commit()
+                    logging.info("[Migration] email_hash column added to tasks table.")
+        except Exception as e:
+            logging.warning(f"[Migration] email_hash column migration skipped: {e}")
+
+        
         # Cold start mock user creation if DB is entirely empty
         from src.models.all_models import User, Task
         if User.query.count() == 0:
