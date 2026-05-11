@@ -24,3 +24,8 @@ api_bp.route('/user/email-config', methods=['POST'])(update_email_config)
 api_bp.route('/health', methods=['GET'])(health_check)
 from flask_jwt_extended import jwt_required
 api_bp.route('/screentime', methods=['POST'])(jwt_required()(update_usage))
+
+# Restriction & Goal API
+from src.controllers.ai_controller import get_restrictions, update_restrictions
+api_bp.route('/user/restrictions', methods=['GET'])(get_restrictions)
+api_bp.route('/user/restrictions', methods=['POST'])(update_restrictions)

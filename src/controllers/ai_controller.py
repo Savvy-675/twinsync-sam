@@ -188,7 +188,10 @@ def analytics():
             'user_type': getattr(user, 'user_type', 'Student'),
             'working_hours_start': getattr(user, 'working_hours_start', '09:00'),
             'working_hours_end': getattr(user, 'working_hours_end', '17:00'),
-            'preferred_work_time': getattr(user, 'preferred_work_time', 'Morning')
+            'preferred_work_time': getattr(user, 'preferred_work_time', 'Morning'),
+            'restricted_apps': getattr(user, 'restricted_apps', '[]'),
+            'allowed_yt_channels': getattr(user, 'allowed_yt_channels', '[]'),
+            'daily_screen_time_goal': getattr(user, 'daily_screen_time_goal', 120)
         },
         'categories': [{'category': c[0], 'count': c[1]} for c in categories],
         'weekly': weekly,
@@ -219,3 +222,36 @@ def onboard_profile():
     
     db.session.commit()
     return success_response(message="Smart planner profile configured successfully.")
+
+@jwt_required()
+def get_restrictions():
+    user_id = get_jwt_identity()
+    user = UserRepository.get_by_id(user_id)
+    if not user:
+        return error_response(message="User not found")
+    
+    import json
+    return success_response(data={
+        'restricted_apps': json.loads(user.restricted_apps or '[]'),
+        'allowed_yt_channels': json.loads(user.allowed_yt_channels or '[]'),
+        'daily_screen_time_goal': user.daily_screen_time_goal or 120
+    })
+
+@jwt_required()
+def update_restrictions():
+    user_id = get_jwt_identity()
+    user = UserRepository.get_by_id(user_id)
+    if not user:
+        return error_response(message="User not found")
+    
+    data = request.json
+    import json
+    if 'restricted_apps' in data:
+        user.restricted_apps = json.dumps(data.get('restricted_apps'))
+    if 'allowed_yt_channels' in data:
+        user.allowed_yt_channels = json.dumps(data.get('allowed_yt_channels'))
+    if 'daily_screen_time_goal' in data:
+        user.daily_screen_time_goal = int(data.get('daily_screen_time_goal'))
+        
+    db.session.commit()
+    return success_response(message="Restrictions updated successfully.")

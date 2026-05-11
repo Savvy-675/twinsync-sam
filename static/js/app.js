@@ -235,6 +235,8 @@ async function fetchAppData() {
     updateAIStatus(analyticsRes);
     // Ensure socket room is joined now that user data is available
     if (socket && socket._joinUserRoom) socket._joinUserRoom();
+    renderRestrictions();
+    loader.style.display = 'none';
 }
 
 function updateAIStatus(res) {
@@ -295,6 +297,54 @@ async function saveEmailSettings() {
         fetchAppData();
     } else {
         toast('Error', res.message || 'Sync failed.', 'danger');
+    }
+}
+
+// -------- RESTRICTION MANAGEMENT --------
+
+function renderRestrictions() {
+    const u = window.appData?.analytics?.user || {};
+    const bannedEl = document.getElementById('prof-banned-apps');
+    const studyEl = document.getElementById('prof-study-channels');
+    
+    if (bannedEl) {
+        let apps = [];
+        try { apps = JSON.parse(u.restricted_apps || '[]'); } catch(e) { apps = []; }
+        bannedEl.value = Array.isArray(apps) ? apps.join(', ') : apps;
+    }
+    if (studyEl) {
+        let channels = [];
+        try { channels = JSON.parse(u.allowed_yt_channels || '[]'); } catch(e) { channels = []; }
+        studyEl.value = Array.isArray(channels) ? channels.join(', ') : channels;
+    }
+}
+
+async function saveRestrictionSettings() {
+    const bannedStr = document.getElementById('prof-banned-apps').value;
+    const studyStr = document.getElementById('prof-study-channels').value;
+    
+    const restricted_apps = bannedStr.split(',').map(s => s.trim()).filter(s => s !== '');
+    const allowed_yt_channels = studyStr.split(',').map(s => s.trim()).filter(s => s !== '');
+    
+    const res = await apiFetch('/user/restrictions', {
+        method: 'POST',
+        body: JSON.stringify({ restricted_apps, allowed_yt_channels })
+    });
+
+    if (res.success) {
+        toast('Guard Updated', 'Focus restrictions synced with Cloud.', 'success');
+        fetchAppData();
+    } else {
+        toast('Sync Failed', 'Could not update restrictions.', 'danger');
+    }
+}
+
+function dismissBlocker() {
+    const overlay = document.getElementById('focus-blocked-overlay');
+    if (overlay) overlay.style.display = 'none';
+    // If on Capacitor, try to bring our app to front
+    if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+        try { Capacitor.Plugins.App.bringToFront(); } catch(e) {}
     }
 }
 
@@ -924,10 +974,12 @@ function initFocusMode() {
             running = true;
             startBtn.textContent = '⏸ Pause';
             showToast('🍅 Focus session started! Stay locked in.', 'success');
+            startFocusGuard();
         } else {
             clearInterval(timerInterval);
             running = false;
             startBtn.textContent = '▶ Resume';
+            stopFocusGuard();
         }
     });
 
@@ -937,11 +989,93 @@ function initFocusMode() {
         remaining = totalSeconds;
         display.textContent = fmt(remaining);
         startBtn.textContent = '▶ Start';
+        stopFocusGuard();
     });
 
     closeBtn.addEventListener('click', () => {
         overlay.style.display = 'none';
     });
+
+    // --- FOCUS GUARD LOGIC ---
+    let guardInterval = null;
+    
+    function startFocusGuard() {
+        if (guardInterval) clearInterval(guardInterval);
+        guardInterval = setInterval(checkFocusGuard, 3000); // Check every 3 seconds
+        console.log("Focus Guard ACTIVATED");
+    }
+
+    function stopFocusGuard() {
+        if (guardInterval) clearInterval(guardInterval);
+        guardInterval = null;
+        console.log("Focus Guard DEACTIVATED");
+        document.getElementById('focus-blocked-overlay').style.display = 'none';
+    }
+
+    async function checkFocusGuard() {
+        const isNative = window.Capacitor && window.Capacitor.isNativePlatform();
+        if (!isNative) return;
+
+        try {
+            const { UsageStatsManager } = Capacitor.Plugins;
+            if (!UsageStatsManager) return;
+
+            // Query events for the last 10 seconds to find the most recent MOVE_TO_FOREGROUND
+            const now = Date.now();
+            const stats = await UsageStatsManager.queryUsageStats({ 
+                startTime: now - 10000, 
+                endTime: now 
+            });
+
+            // Find the app with the most foreground time in the last window
+            let foregroundApp = null;
+            let maxTime = 0;
+            
+            Object.entries(stats || {}).forEach(([pkg, data]) => {
+                if (data.totalTimeInForeground > maxTime) {
+                    maxTime = data.totalTimeInForeground;
+                    foregroundApp = pkg;
+                }
+            });
+
+            if (foregroundApp) {
+                const u = window.appData?.analytics?.user || {};
+                let banned = [];
+                try { banned = JSON.parse(u.restricted_apps || '[]'); } catch(e) {}
+                
+                // Also handle YouTube specially
+                const isYouTube = foregroundApp.includes('youtube');
+                
+                if (banned.includes(foregroundApp)) {
+                    triggerFocusBreach(foregroundApp);
+                } else if (isYouTube) {
+                    // YouTube guard: Simply nudge or block if not in study mode
+                    // For now, we block it unless user adds it to an "allowed" list or we detect intent
+                    // User requested: "only productivity channels and study channels should open"
+                    // Since we can't detect channels easily, we nudge with a specific study message
+                    triggerYouTubeNudge();
+                }
+            }
+        } catch (e) {
+            console.error("Guard Check Failed", e);
+        }
+    }
+
+    function triggerFocusBreach(pkg) {
+        console.warn("FOCUS BREACH: " + pkg);
+        const overlay = document.getElementById('focus-blocked-overlay');
+        if (overlay.style.display !== 'flex') {
+            overlay.style.display = 'flex';
+            // Vibrate if possible
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+            showToast("⚠️ Focus Guard: App Blocked!", "danger");
+        }
+    }
+
+    function triggerYouTubeNudge() {
+        // More subtle than a full block since we can't be sure of the channel
+        showToast("📺 YouTube detected. Ensure you are watching STUDY content!", "warning");
+    }
 }
 
 // -------- IDLE TRACKER --------

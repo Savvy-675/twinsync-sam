@@ -36,6 +36,8 @@ class User(db.Model):
     active_usage_today = db.Column(db.Integer, default=0)
     total_screen_time_today = db.Column(db.Integer, default=0)
     daily_screen_time_goal = db.Column(db.Integer, default=120) # in minutes
+    restricted_apps = db.Column(db.Text, default='["com.instagram.android", "com.zhiliaoapp.musically", "com.facebook.katana", "com.twitter.android"]')
+    allowed_yt_channels = db.Column(db.Text, default='["FreeCodeCamp", "Khan Academy", "Veritasium", "CrashCourse", "Lex Fridman"]')
 
     # Personalized Email Sync
     imap_server = db.Column(db.String(100))
