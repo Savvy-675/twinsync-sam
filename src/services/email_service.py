@@ -37,6 +37,14 @@ class EmailService:
     @staticmethod
     def fetch_emails(user, max_emails=50):
         """Connect to user's personalized mail server or fallback to default."""
+        # 🟢 PREFER GOOGLE API (OAuth2)
+        if getattr(user, 'google_token', None):
+            try:
+                return EmailService.fetch_emails_google(user, max_emails)
+            except Exception as e:
+                logger.error(f"Google API fetch failed, falling back to IMAP: {e}")
+
+        # 🟡 FALLBACK TO IMAP (Legacy)
         email_user = getattr(user, 'email_user', None) or Config.SMTP_USER
         email_pass = None
         
@@ -103,6 +111,63 @@ class EmailService:
         except Exception as e:
             logger.error(f"IMAP connection failed: {e}")
             raise Exception(f"IMAP connection failed: Verify your credentials or app password. Details: {str(e)}")
+
+    @staticmethod
+    def fetch_emails_google(user, max_emails=50):
+        """Fetch emails using Google Gmail API with OAuth2 tokens."""
+        from googleapiclient.discovery import build
+        from google.oauth2.credentials import Credentials
+        from google.auth.transport.requests import Request
+        from src.config.db import db
+        
+        creds = Credentials(
+            token=user.google_token,
+            refresh_token=user.google_refresh_token,
+            token_uri="https://oauth2.googleapis.com/token",
+            client_id=Config.GOOGLE_CLIENT_ID,
+            client_secret=Config.GOOGLE_CLIENT_SECRET,
+            scopes=['https://www.googleapis.com/auth/gmail.readonly']
+        )
+        
+        # Refresh token if expired
+        if creds.expired and creds.refresh_token:
+            try:
+                creds.refresh(Request())
+                user.google_token = creds.token
+                db.session.commit()
+                logger.info(f"Refreshed Google token for user {user.id}")
+            except Exception as e:
+                logger.error(f"Failed to refresh Google token: {e}")
+                raise e
+
+        service = build('gmail', 'v1', credentials=creds)
+        
+        # Search for messages (last 30 days)
+        # q = "after:2023/12/01" -> using dynamic date
+        since_date = (datetime.now() - timedelta(days=30)).strftime("%Y/%m/%d")
+        results = service.users().messages().list(userId='me', q=f'after:{since_date}', maxResults=max_emails).execute()
+        messages = results.get('messages', [])
+        
+        emails = []
+        for msg_info in messages:
+            msg = service.users().messages().get(userId='me', id=msg_info['id']).execute()
+            payload = msg.get('payload', {})
+            headers = payload.get('headers', [])
+            
+            subject = next((h['value'] for h in headers if h['name'] == 'Subject'), 'No Subject')
+            sender = next((h['value'] for h in headers if h['name'] == 'From'), 'Unknown')
+            
+            # Extract snippet as body
+            body = msg.get('snippet', '')
+            
+            emails.append({
+                'subject': subject,
+                'sender': sender,
+                'body': body,
+                'id': msg_info['id']
+            })
+            
+        return emails
 
     @staticmethod
     def filter_task_emails(emails):

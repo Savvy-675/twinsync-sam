@@ -44,6 +44,10 @@ class User(db.Model):
     smtp_server = db.Column(db.String(100))
     email_user = db.Column(db.String(120))
     email_pass_encrypted = db.Column(db.String(255))
+    
+    # Google OAuth tokens
+    google_token = db.Column(db.Text)
+    google_refresh_token = db.Column(db.Text)
 
     tasks = db.relationship('Task', backref='user', lazy=True)
     logs = db.relationship('ActivityLog', backref='user', lazy=True)

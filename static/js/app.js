@@ -45,17 +45,28 @@ async function apiFetch(endpoint, options = {}, retryOnAuth = true) {
     if (token) headers['Authorization'] = "Bearer " + token.trim();
     try {
         const response = await fetch(`${API_BASE}${endpoint}`, { ...options, headers });
+        
+        // Parse JSON if possible
+        let data = {};
+        try { data = await response.json(); } catch(e) {}
+
         if (response.status === 401 || response.status === 422) {
             if (retryOnAuth) {
                 localStorage.removeItem('jwt_token');
                 return apiFetch(endpoint, options, false);
             }
-            return { success: false, error: 'Auth failed' };
+            return { success: false, message: 'Session expired. Please log in again.' };
         }
-        if (!response.ok) return { success: false };
-        return response.json();
+
+        if (!response.ok) {
+            return { 
+                success: false, 
+                message: data.message || `Server error (${response.status})` 
+            };
+        }
+        return data;
     } catch (err) {
-        return { success: false, error: err.message };
+        return { success: false, message: 'Network connection failed.' };
     }
 }
 
@@ -888,7 +899,7 @@ document.getElementById('btn-email-sync').addEventListener('click', async () => 
             showToast(count > 0 ? `📧 ${count} new task(s) synced from Gmail!` : '📧 No new task emails found.', 'success');
             if (count > 0) await fetchAppData();
         } else {
-            showToast('Email sync failed. Check your credentials.', 'danger');
+            showToast(res.message || 'Email sync failed. Check your credentials.', 'danger');
         }
     } catch (e) {
         showToast('Email sync error.', 'danger');
@@ -897,6 +908,19 @@ document.getElementById('btn-email-sync').addEventListener('click', async () => 
         btn.disabled = false;
     }
 });
+
+async function linkGoogleAccount() {
+    try {
+        const res = await apiFetch('/auth/google', { method: 'GET' });
+        if (res.success && res.data.auth_url) {
+            window.location.href = res.data.auth_url;
+        } else {
+            showToast(res.message || 'Failed to start Google Auth.', 'danger');
+        }
+    } catch (e) {
+        showToast('Error connecting to authentication cloud.', 'danger');
+    }
+}
 
 // -------- TOAST UTILITIES --------
 
@@ -919,6 +943,14 @@ document.addEventListener('DOMContentLoaded', () => {
     initScreenTimeTracker();
     initFocusMode();
     initIdleTracker();
+    
+    // Check for successful Google link
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('google_linked')) {
+        showToast('✅ Google Account linked successfully!', 'success');
+        // Clean up URL without refreshing
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
 });
 
 // -------- FOCUS MODE (POMODORO) --------

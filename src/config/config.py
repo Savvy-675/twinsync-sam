@@ -44,3 +44,8 @@ class Config:
     # 🛡️ Performance & Security
     CACHE_TYPE = "SimpleCache"
     RATELIMIT_STORAGE_URL = "memory://"
+
+    # 🌐 Google OAuth2 Configuration
+    GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
+    GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
+    GOOGLE_REDIRECT_URI = os.getenv('GOOGLE_REDIRECT_URI', 'https://twinsync-sam.onrender.com/api/auth/google/callback')
